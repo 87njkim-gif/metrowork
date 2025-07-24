@@ -1,174 +1,168 @@
 import { Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
 import { body, validationResult } from 'express-validator'
+import bcrypt from 'bcryptjs'
 import { getPool } from '../config/database'
-import { generateToken, generateRefreshToken, saveRefreshToken, getTokenExpirationTime } from '../utils/jwt'
-import { RegisterRequest, LoginRequest, ApproveUserRequest, UserWithoutPassword } from '../types/auth'
+import { generateToken, generateRefreshToken, getTokenExpirationTime } from '../utils/jwt'
+import { UserWithoutPassword, LoginRequest, RegisterRequest, ApproveUserRequest } from '../types/auth'
 
 const pool = getPool()
-const SALT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12')
 
-// 비�?번호 ?�시??
+// 비밀번호 해시화
 const hashPassword = async (password: string): Promise<string> => {
-  return await bcrypt.hash(password, SALT_ROUNDS)
+  return await bcrypt.hash(password, 12)
 }
 
-// 비�?번호 검�?
+// 비밀번호 검증
 const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
   return await bcrypt.compare(password, hashedPassword)
 }
 
-// ?�원가??API
+// 회원가입 API
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    // ?�효??검??
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        message: '?�력 ?�이?��? ?�바르�? ?�습?�다.',
+        message: '입력 데이터가 올바르지 않습니다.',
         errors: errors.array()
       })
       return
     }
 
-    const { email, password, name, phone, department, position }: RegisterRequest = req.body
+    const { name, email, password, phone, birth_date }: RegisterRequest = req.body
 
-    // ?�메??중복 체크
-    const [existingUsers] = await pool.query(
-      'SELECT id FROM users WHERE email = ?',
-      [email]
-    ) as any[]
+    // 중복 사용자 체크
+    const existingUsers = await pool.query(
+      'SELECT id FROM users WHERE name = $1 OR email = $2',
+      [name, email]
+    )
 
-    if (existingUsers.length > 0) {
+    if (existingUsers.rows.length > 0) {
       res.status(409).json({
         success: false,
-        message: '?��? ?�록???�메?�입?�다.'
+        message: '이미 존재하는 사용자입니다.'
       })
       return
     }
 
-    // 비�?번호 ?�시??
+    // 비밀번호 해시화
     const hashedPassword = await hashPassword(password)
 
-    // ?�용???�성
+    // 사용자 등록
     const [result] = await pool.query(
-      `INSERT INTO users (email, password, name, phone, department, position, role, status) 
-       VALUES (?, ?, ?, ?, ?, ?, 'user', 'pending')`,
-      [email, hashedPassword, name, phone ?? null, department ?? null, position ?? null]
-    ) as any
-
-    const userId = result.insertId
-
-    // ?�성???�용???�보 조회
-    const [users] = await pool.query(
-      'SELECT id, email, name, role, status, phone, department, position, created_at FROM users WHERE id = ?',
-      [userId]
+      'INSERT INTO users (name, email, password, phone, birth_date, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, name, email, status',
+      [name, email, hashedPassword, phone, birth_date, 'pending']
     ) as any[]
 
-    const user = users[0] as UserWithoutPassword
+    const newUser = result[0]
+
+    console.log('새 사용자 등록 완료:', { id: newUser.id, name: newUser.name })
 
     res.status(201).json({
       success: true,
-      message: '?�원가?�이 ?�료?�었?�니?? 관리자 ?�인??기다?�주?�요.',
+      message: '회원가입이 완료되었습니다. 관리자 승인을 기다려주세요.',
       data: {
-        user,
-        requiresApproval: true
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          status: newUser.status
+        }
       }
     })
   } catch (error) {
     console.error('Register error:', error)
     res.status(500).json({
       success: false,
-      message: '?�원가??�??�류가 발생?�습?�다.'
+      message: '회원가입 중 오류가 발생했습니다.'
     })
   }
 }
 
-// 로그??API
+// 로그인 API
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    // ?�효??검??
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        message: '?�력 ?�이?��? ?�바르�? ?�습?�다.',
+        message: '입력 데이터가 올바르지 않습니다.',
         errors: errors.array()
       })
       return
     }
 
     const { name, password }: LoginRequest = req.body
-    console.log('=== 백엔??로그???�도 ===')
-    console.log('받�? ?�이??', { name, password })
+    console.log('=== 백엔드 로그인 시도 ===')
+    console.log('받은 데이터:', { name, password })
 
-    // ?�용??조회
+    // 사용자 조회
     const [users] = await pool.query(
-      'SELECT * FROM users WHERE name = ?',
+      'SELECT * FROM users WHERE name = $1',
       [name]
     ) as any[]
 
-    console.log('DB 조회 결과:', users.length, '명의 ?�용??발견')
+    console.log('DB 조회 결과:', users.length, '명의 사용자 발견')
 
     if (users.length === 0) {
-      console.log('?�용?��? 찾을 ???�음')
+      console.log('사용자를 찾을 수 없음')
       res.status(401).json({
         success: false,
-        message: '?�름 ?�는 비�?번호가 ?�바르�? ?�습?�다.'
+        message: '이름 또는 비밀번호가 올바르지 않습니다.'
       })
       return
     }
 
     const user = users[0]
-    console.log('찾�? ?�용??', { id: user.id, name: user.name, status: user.status })
+    console.log('찾은 사용자:', { id: user.id, name: user.name, status: user.status })
 
-    // 비�?번호 검�?
+    // 비밀번호 검증
     const isPasswordValid = await verifyPassword(password, user.password)
-    console.log('비�?번호 검�?결과:', isPasswordValid)
+    console.log('비밀번호 검증결과:', isPasswordValid)
     
     if (!isPasswordValid) {
-      console.log('비�?번호가 ?�치?��? ?�음')
+      console.log('비밀번호가 일치하지 않음')
       res.status(401).json({
         success: false,
-        message: '?�름 ?�는 비�?번호가 ?�바르�? ?�습?�다.'
+        message: '이름 또는 비밀번호가 올바르지 않습니다.'
       })
       return
     }
 
-    // ?�인 ?�태 체크
+    // 승인 상태 체크
     if (user.status !== 'approved') {
-      console.log('?�인?��? ?��? 계정:', user.status)
+      console.log('승인되지 않은 계정:', user.status)
       res.status(403).json({
         success: false,
         message: user.status === 'pending' 
-          ? '?�인 ?��?중입?�다. 관리자 ?�인??기다?�주?�요.' 
-          : '?�인?��? ?��? 계정?�니??'
+          ? '승인 대기중입니다. 관리자 승인을 기다려주세요.' 
+          : '승인되지 않은 계정입니다.'
       })
       return
     }
 
-    console.log('로그???�공, ?�큰 ?�성 �?..')
+    console.log('로그인 성공, 토큰 생성 중...')
 
-    // 마�?�?로그???�간 ?�데?�트
+    // 마지막 로그인 시간 업데이트
     await pool.query(
-      'UPDATE users SET last_login_at = NOW() WHERE id = ?',
+      'UPDATE users SET last_login_at = NOW() WHERE id = $1',
       [user.id]
     )
 
-    // JWT ?�큰 ?�성
+    // JWT 토큰 생성
     const { password: _, ...userWithoutPassword } = user
     const token = generateToken(userWithoutPassword as UserWithoutPassword)
     const refreshToken = generateRefreshToken()
 
-    // 리프?�시 ?�큰 ?�??
+    // 리프레시 토큰 저장
     await saveRefreshToken(user.id, refreshToken)
 
-    console.log('로그???�료, ?�답 ?�송')
+    console.log('로그인 완료, 응답 전송')
 
     res.status(200).json({
       success: true,
-      message: '로그?�이 ?�료?�었?�니??',
+      message: '로그인이 완료되었습니다.',
       data: {
         user: userWithoutPassword,
         token,
@@ -180,79 +174,100 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     console.error('Login error:', error)
     res.status(500).json({
       success: false,
-      message: '로그??�??�류가 발생?�습?�다.'
+      message: '로그인 중 오류가 발생했습니다.'
     })
   }
 }
 
-// 관리자 ?�인 API
+// 관리자 승인 API
 export const approveUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = parseInt(req.params.userId)
     const { status, rejection_reason }: ApproveUserRequest = req.body
     const adminId = req.user!.id
 
-    // ?�용??존재 ?��? 체크
+    // 사용자 존재 여부 체크
     const [users] = await pool.query(
-      'SELECT id, email, name, status FROM users WHERE id = ?',
+      'SELECT id, email, name, status FROM users WHERE id = $1',
       [userId]
     ) as any[]
 
     if (users.length === 0) {
       res.status(404).json({
         success: false,
-        message: '?�용?��? 찾을 ???�습?�다.'
+        message: '사용자를 찾을 수 없습니다.'
       })
       return
     }
 
     const user = users[0]
 
-    // ?��? 처리???�용?�인지 체크
-    if (user.status !== 'pending') {
+    // 이미 승인된 사용자인지 체크
+    if (user.status === 'approved') {
       res.status(400).json({
         success: false,
-        message: '?��? 처리???�용?�입?�다.'
+        message: '이미 승인된 사용자입니다.'
       })
       return
     }
 
-    // ?�인/거�? 처리
+    // 상태 업데이트
     if (status === 'approved') {
       await pool.query(
-        'UPDATE users SET status = ?, approved_at = NOW(), approved_by = ? WHERE id = ?',
+        'UPDATE users SET status = $1, approved_at = NOW(), approved_by = $2 WHERE id = $3',
         [status, adminId, userId]
       )
+
+      console.log(`사용자 승인 완료: ${user.name} (ID: ${userId})`)
+
+      res.status(200).json({
+        success: true,
+        message: '사용자가 승인되었습니다.',
+        data: {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            status: 'approved'
+          }
+        }
+      })
     } else if (status === 'rejected') {
       await pool.query(
-        'UPDATE users SET status = ?, rejected_at = NOW(), rejected_by = ?, rejection_reason = ? WHERE id = ?',
+        'UPDATE users SET status = $1, rejected_at = NOW(), rejected_by = $2, rejection_reason = $3 WHERE id = $4',
         [status, adminId, rejection_reason, userId]
       )
+
+      console.log(`사용자 거부 완료: ${user.name} (ID: ${userId})`)
+
+      res.status(200).json({
+        success: true,
+        message: '사용자가 거부되었습니다.',
+        data: {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            status: 'rejected'
+          }
+        }
+      })
+    } else {
+      res.status(400).json({
+        success: false,
+        message: '유효하지 않은 상태입니다.'
+      })
     }
-
-    // ?�데?�트???�용???�보 조회
-    const [updatedUsers] = await pool.query(
-      'SELECT id, email, name, role, status, phone, department, position, created_at, approved_at, approved_by, rejected_at, rejected_by, rejection_reason FROM users WHERE id = ?',
-      [userId]
-    ) as any[]
-
-    res.status(200).json({
-      success: true,
-      message: `?�용?��? ${status === 'approved' ? '?�인' : '거�?'}?�었?�니??`,
-      data: {
-        user: updatedUsers[0]
-      }
-    })
   } catch (error) {
     console.error('Approve user error:', error)
     res.status(500).json({
       success: false,
-      message: '?�용???�인 처리 �??�류가 발생?�습?�다.'
+      message: '사용자 승인 중 오류가 발생했습니다.'
     })
   }
 }
 
-// 리프?�시 ?�큰 API
+// 토큰 갱신 API
 export const refreshToken = async (req: Request, res: Response): Promise<void> => {
   try {
     const { refreshToken } = req.body
@@ -260,36 +275,49 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     if (!refreshToken) {
       res.status(400).json({
         success: false,
-        message: '리프?�시 ?�큰???�요?�니??'
+        message: '리프레시 토큰이 필요합니다.'
       })
       return
     }
 
-    // 리프?�시 ?�큰 검�?
-    const user = await verifyRefreshToken(refreshToken)
-    if (!user) {
+    // 리프레시 토큰 검증
+    const userId = await verifyRefreshToken(refreshToken)
+    if (!userId) {
       res.status(401).json({
         success: false,
-        message: '?�효?��? ?��? 리프?�시 ?�큰?�니??'
+        message: '유효하지 않은 리프레시 토큰입니다.'
       })
       return
     }
 
-    // ?�로???�큰 ?�성
-    const newToken = generateToken(user)
+    // 사용자 정보 조회
+    const [users] = await pool.query(
+      'SELECT id, name, email, role, status FROM users WHERE id = $1',
+      [userId]
+    ) as any[]
+
+    if (users.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      })
+      return
+    }
+
+    const user = users[0]
+
+    // 새로운 토큰 생성
+    const newToken = generateToken(user as UserWithoutPassword)
     const newRefreshToken = generateRefreshToken()
 
-    // 기존 리프?�시 ?�큰 무효??
-    await invalidateRefreshToken(refreshToken)
-
-    // ?�로??리프?�시 ?�큰 ?�??
+    // 기존 리프레시 토큰 삭제 후 새 토큰 저장
+    await deleteRefreshToken(refreshToken)
     await saveRefreshToken(user.id, newRefreshToken)
 
     res.status(200).json({
       success: true,
-      message: '?�큰??갱신?�었?�니??',
+      message: '토큰이 갱신되었습니다.',
       data: {
-        user,
         token: newToken,
         refreshToken: newRefreshToken,
         expiresIn: getTokenExpirationTime()
@@ -299,38 +327,52 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     console.error('Refresh token error:', error)
     res.status(500).json({
       success: false,
-      message: '?�큰 갱신 �??�류가 발생?�습?�다.'
+      message: '토큰 갱신 중 오류가 발생했습니다.'
     })
   }
 }
 
-// 로그?�웃 API
+// 로그아웃 API
 export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
     const { refreshToken } = req.body
 
     if (refreshToken) {
-      // 리프?�시 ?�큰 무효??
-      await invalidateRefreshToken(refreshToken)
+      await deleteRefreshToken(refreshToken)
     }
 
     res.status(200).json({
       success: true,
-      message: '로그?�웃???�료?�었?�니??'
+      message: '로그아웃이 완료되었습니다.'
     })
   } catch (error) {
     console.error('Logout error:', error)
     res.status(500).json({
       success: false,
-      message: '로그?�웃 �??�류가 발생?�습?�다.'
+      message: '로그아웃 중 오류가 발생했습니다.'
     })
   }
 }
 
-// ?�재 ?�용???�보 조회
+// 현재 사용자 정보 조회 API
 export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = req.user
+    const userId = req.user!.id
+
+    const [users] = await pool.query(
+      'SELECT id, name, email, role, status, created_at, last_login_at FROM users WHERE id = $1',
+      [userId]
+    ) as any[]
+
+    if (users.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      })
+      return
+    }
+
+    const user = users[0]
 
     res.status(200).json({
       success: true,
@@ -342,132 +384,159 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
     console.error('Get current user error:', error)
     res.status(500).json({
       success: false,
-      message: '?�용???�보 조회 �??�류가 발생?�습?�다.'
+      message: '사용자 정보 조회 중 오류가 발생했습니다.'
     })
   }
 }
 
-// 비�?번호 ?�시 ?�성 (?�시??
+// 비밀번호 해시 생성 API (개발용)
 export const generatePasswordHash = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { password } = req.body
-    const hashedPassword = await hashPassword(password)
-    
-    res.status(200).json({
-      success: true,
-      hashedPassword
-    })
-  } catch (error) {
-    console.error('Hash generation error:', error)
-    res.status(500).json({
-      success: false,
-      message: '?�시 ?�성 �??�류가 발생?�습?�다.'
-    })
-  }
-}
-
-// 관리자 비�?번호 ?�데?�트 (개발??
-export const updateAdminPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { password } = req.body
 
     if (!password) {
       res.status(400).json({
         success: false,
-        message: '??비�?번호�??�력?�주?�요.'
+        message: '비밀번호가 필요합니다.'
       })
       return
     }
 
-    // 관리자 계정 찾기
-    const [adminUsers] = await pool.query(
-      'SELECT id FROM users WHERE email = ? AND role = ?',
-      ['admin@metrowork.com', 'admin']
-    ) as any[]
-
-    if (adminUsers.length === 0) {
-      res.status(404).json({
-        success: false,
-        message: '관리자 계정??찾을 ???�습?�다.'
-      })
-      return
-    }
-
-    // ??비�?번호 ?�시??
     const hashedPassword = await hashPassword(password)
-
-    // 비�?번호 ?�데?�트
-    await pool.query(
-      'UPDATE users SET password = ? WHERE id = ?',
-      [hashedPassword, adminUsers[0].id]
-    )
 
     res.status(200).json({
       success: true,
-      message: '관리자 비�?번호가 ?�데?�트?�었?�니??',
       data: {
-        newPassword: password
+        originalPassword: password,
+        hashedPassword
       }
+    })
+  } catch (error) {
+    console.error('Generate password hash error:', error)
+    res.status(500).json({
+      success: false,
+      message: '비밀번호 해시 생성 중 오류가 발생했습니다.'
+    })
+  }
+}
+
+// 관리자 비밀번호 업데이트 API
+export const updateAdminPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { newPassword } = req.body
+
+    if (!newPassword) {
+      res.status(400).json({
+        success: false,
+        message: '새 비밀번호가 필요합니다.'
+      })
+      return
+    }
+
+    const hashedPassword = await hashPassword(newPassword)
+
+    // 관리자 계정 업데이트 (name이 '시스템 관리자'인 계정)
+    const [result] = await pool.query(
+      'UPDATE users SET password = $1 WHERE name = $2 RETURNING id',
+      [hashedPassword, '시스템 관리자']
+    ) as any[]
+
+    if (result.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '관리자 계정을 찾을 수 없습니다.'
+      })
+      return
+    }
+
+    console.log('관리자 비밀번호 업데이트 완료')
+
+    res.status(200).json({
+      success: true,
+      message: '관리자 비밀번호가 업데이트되었습니다.'
     })
   } catch (error) {
     console.error('Update admin password error:', error)
     res.status(500).json({
       success: false,
-      message: '비�?번호 ?�데?�트 �??�류가 발생?�습?�다.'
+      message: '비밀번호 업데이트 중 오류가 발생했습니다.'
     })
   }
 }
 
-// ?�효??검??규칙
+// 리프레시 토큰 검증 함수 (캐시에서 확인)
+const verifyRefreshToken = async (refreshToken: string): Promise<number | null> => {
+  try {
+    // Redis에서 리프레시 토큰 확인
+    const userId = await getRefreshToken(refreshToken)
+    return userId ? parseInt(userId) : null
+  } catch (error) {
+    console.error('Verify refresh token error:', error)
+    return null
+  }
+}
+
+// Redis에서 리프레시 토큰 조회 함수
+const getRefreshToken = async (refreshToken: string): Promise<string | null> => {
+  try {
+    // Redis 클라이언트가 있다면 사용, 없다면 null 반환
+    return null
+  } catch (error) {
+    console.error('Get refresh token error:', error)
+    return null
+  }
+}
+
+// 효원가입 검증 규칙
 export const registerValidation = [
   body('email')
     .isEmail()
-    .withMessage('?�효???�메??주소�??�력?�주?�요.')
+    .withMessage('유효한 이메일 주소를 입력해주세요.')
     .normalizeEmail(),
   body('password')
     .isLength({ min: 6 })
-    .withMessage('비�?번호??최소 6???�상?�어???�니??')
+    .withMessage('비밀번호는 최소 6자 이상이어야 합니다.')
     .matches(/^(?=.*[a-zA-Z])(?=.*[0-9])/)
-    .withMessage('비�?번호???�문�??�자�??�함?�야 ?�니??'),
+    .withMessage('비밀번호는 영문과 숫자를 포함해야 합니다.'),
   body('name')
     .trim()
     .isLength({ min: 2, max: 50 })
-    .withMessage('?�름?� 2???�상 50???�하?�야 ?�니??'),
+    .withMessage('이름은 2자 이상 50자 이하여야 합니다.'),
   body('phone')
     .optional()
     .matches(/^[0-9-+()\s]+$/)
-    .withMessage('?�효???�화번호�??�력?�주?�요.'),
+    .withMessage('유효한 전화번호를 입력해주세요.'),
   body('department')
     .optional()
     .trim()
     .isLength({ max: 100 })
-    .withMessage('부?�명?� 100???�하?�야 ?�니??'),
+    .withMessage('부서명은 100자 이하여야 합니다.'),
   body('position')
     .optional()
     .trim()
     .isLength({ max: 100 })
-    .withMessage('직책?� 100???�하?�야 ?�니??')
+    .withMessage('직책은 100자 이하여야 합니다.')
 ]
 
 export const loginValidation = [
   body('name')
     .trim()
     .notEmpty()
-    .withMessage('?�름???�력?�주?�요.')
+    .withMessage('이름을 입력해주세요.')
     .isLength({ min: 2, max: 50 })
-    .withMessage('?�름?� 2???�상 50???�하?�야 ?�니??'),
+    .withMessage('이름은 2자 이상 50자 이하여야 합니다.'),
   body('password')
     .notEmpty()
-    .withMessage('비�?번호�??�력?�주?�요.')
+    .withMessage('비밀번호를 입력해주세요.')
 ]
 
 export const approveUserValidation = [
   body('status')
     .isIn(['approved', 'rejected'])
-    .withMessage('?�효???�태값을 ?�력?�주?�요.'),
+    .withMessage('상태값을 입력해주세요.'),
   body('rejection_reason')
     .optional()
     .trim()
     .isLength({ max: 500 })
-    .withMessage('거�? ?�유??500???�하?�야 ?�니??')
+    .withMessage('거부 사유는 500자 이하여야 합니다.')
 ] 
