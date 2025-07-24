@@ -55,16 +55,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const res = await apiService.login({ name, password });
       console.log('API 응답 받음:', res)
       
+      // API 서비스에 토큰 설정 (먼저 설정)
+      apiService.setAuthToken(res.data.token);
+      
       // 토큰과 사용자 정보를 localStorage에 저장
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('refreshToken', res.data.refreshToken);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       
-      // API 서비스에 토큰 설정
-      apiService.setAuthToken(res.data.token);
-      
       setUser(res.data.user);
       console.log('로그인 완료, 사용자 설정됨:', res.data.user)
+      console.log('토큰 설정 완료:', res.data.token.substring(0, 20) + '...')
     } catch (error) {
       console.error('useAuth login 함수에서 오류 발생:', error)
       throw error;
