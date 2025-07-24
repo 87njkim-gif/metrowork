@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { body, validationResult } from 'express-validator'
-import bcrypt from 'bcryptjs'
+import bcrypt from 'bcrypt'
 import { getPool } from '../config/database'
 import { generateToken, generateRefreshToken, getTokenExpirationTime } from '../utils/jwt'
 import { UserWithoutPassword, LoginRequest, RegisterRequest, ApproveUserRequest } from '../types/auth'
@@ -436,12 +436,12 @@ export const updateAdminPassword = async (req: Request, res: Response): Promise<
     const hashedPassword = await hashPassword(newPassword)
 
     // 관리자 계정 업데이트 (name이 '시스템 관리자'인 계정)
-    const [result] = await pool.query(
+    const result = await pool.query(
       'UPDATE users SET password = $1 WHERE name = $2 RETURNING id',
       [hashedPassword, '시스템 관리자']
-    ) as any[]
+    )
 
-    if (result.length === 0) {
+    if (result.rows.length === 0) {
       res.status(404).json({
         success: false,
         message: '관리자 계정을 찾을 수 없습니다.'
@@ -453,7 +453,10 @@ export const updateAdminPassword = async (req: Request, res: Response): Promise<
 
     res.status(200).json({
       success: true,
-      message: '관리자 비밀번호가 업데이트되었습니다.'
+      message: '관리자 비밀번호가 업데이트되었습니다.',
+      data: {
+        newPassword: newPassword
+      }
     })
   } catch (error) {
     console.error('Update admin password error:', error)
