@@ -256,18 +256,32 @@ export const getCompletedWorkByDate = async (req: Request, res: Response): Promi
 // 업무 통계 조회
 export const getWorkStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [summary, userStats, fileStats] = await Promise.all([
-      getWorkSummary(),
-      getUserWorkStats(),
-      getFileWorkStats()
-    ])
+    const userId = req.user!.id
+
+    // 기본 통계 조회
+    const statsResult = await pool.query(`
+      SELECT 
+        COUNT(*) as total_items,
+        COUNT(CASE WHEN is_completed = TRUE THEN 1 END) as completed_items,
+        COUNT(CASE WHEN is_completed = FALSE THEN 1 END) as pending_items
+      FROM work_status 
+      WHERE user_id = $1
+    `, [userId])
+
+    const stats = statsResult.rows[0]
+    const completionRate = stats.total_items > 0 ? (stats.completed_items / stats.total_items) * 100 : 0
 
     res.status(200).json({
       success: true,
       data: {
-        summary,
-        userStats,
-        fileStats
+        summary: {
+          totalItems: stats.total_items,
+          completedItems: stats.completed_items,
+          pendingItems: stats.pending_items,
+          completionRate: Math.round(completionRate * 100) / 100
+        },
+        userStats: [],
+        fileStats: []
       }
     })
   } catch (error) {
@@ -331,22 +345,19 @@ export const bulkCheckWork = async (req: Request, res: Response): Promise<void> 
 export const getUserWorkStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id
-    const todayDate = await getUserTodayDate(userId)
-
-    // 오늘 완료된 업무 조회
-    const todayWork = await getCompletedWorkByDate(userId, todayDate, 1, 10)
+    const todayDate = new Date().toISOString().split('T')[0] // 오늘 날짜
 
     // 전체 통계
-    const [totalStats] = await pool.query(`
+    const totalStatsResult = await pool.query(`
       SELECT 
         COUNT(*) as total_items,
         COUNT(CASE WHEN is_completed = TRUE THEN 1 END) as completed_items,
         COUNT(CASE WHEN is_completed = FALSE THEN 1 END) as pending_items
       FROM work_status 
-      WHERE user_id = ?
-    `, [userId]) as any[]
+      WHERE user_id = $1
+    `, [userId])
 
-    const stats = totalStats[0]
+    const stats = totalStatsResult.rows[0]
     const completionRate = stats.total_items > 0 ? (stats.completed_items / stats.total_items) * 100 : 0
 
     res.status(200).json({

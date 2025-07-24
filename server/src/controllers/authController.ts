@@ -359,12 +359,12 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
   try {
     const userId = req.user!.id
 
-    const [users] = await pool.query(
+    const result = await pool.query(
       'SELECT id, name, email, role, status, created_at, last_login_at FROM users WHERE id = $1',
       [userId]
-    ) as any[]
+    )
 
-    if (users.length === 0) {
+    if (result.rows.length === 0) {
       res.status(404).json({
         success: false,
         message: '사용자를 찾을 수 없습니다.'
@@ -372,7 +372,7 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
       return
     }
 
-    const user = users[0]
+    const user = result.rows[0]
 
     res.status(200).json({
       success: true,

@@ -1,34 +1,15 @@
 import { Request, Response } from 'express'
-import multer from 'multer'
-import path from 'path'
-import fs from 'fs'
-import { fileURLToPath } from 'url'
+import { validationResult } from 'express-validator'
 import { getPool } from '../config/database'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-import { processExcelFile, getFileInfo, getColumns, getDataCount, buildSearchQuery } from '../utils/excelProcessor'
-import { 
-  setCache, 
-  getCache, 
-  generateDataCacheKey, 
-  generateSummaryCacheKey, 
-  generateSearchCacheKey,
-  optimizePaginationResponse,
-  clearFileCache
-} from '../utils/cache'
-import { 
-  ExcelDataQuery, 
-  ExcelDataResponse, 
-  SearchCriteria, 
-  SearchResponse, 
-  ExcelSummary,
-  UploadRequest
-} from '../types/excel'
+import { processExcelFile } from '../utils/excelProcessor'
+import { clearFileCache, getFileCache, setFileCache } from '../utils/cache'
+import fs from 'fs'
+import path from 'path'
+import multer from 'multer'
 
 const pool = getPool()
 
-// ?�일 ?�로???�정
+// Multer 설정
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, '../../uploads')
@@ -44,9 +25,9 @@ const storage = multer.diskStorage({
 })
 
 const upload = multer({
-  storage,
+  storage: storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB
+    fileSize: 50 * 1024 * 1024 // 50MB
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
@@ -58,19 +39,20 @@ const upload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true)
     } else {
-      cb(new Error('지?�하지 ?�는 ?�일 ?�식?�니??'))
+      cb(new Error('지원하지 않는 파일 형식입니다.'))
     }
   }
 })
 
-// ?��? ?�일 ?�로??API
+// 엑셀 파일 업로드
 export const uploadExcel = async (req: Request, res: Response): Promise<void> => {
   try {
     upload.single('file')(req, res, async (err) => {
       if (err) {
+        console.error('Upload error:', err)
         res.status(400).json({
           success: false,
-          message: err.message
+          message: err.message || '파일 업로드 중 오류가 발생했습니다.'
         })
         return
       }
@@ -78,49 +60,47 @@ export const uploadExcel = async (req: Request, res: Response): Promise<void> =>
       if (!req.file) {
         res.status(400).json({
           success: false,
-          message: '?�일???�로?�되지 ?�았?�니??'
+          message: '파일이 선택되지 않았습니다.'
         })
         return
       }
 
-      const { description, tags, chunkSize = 1000, validateData = true }: UploadRequest = req.body
       const userId = req.user!.id
+      const file = req.file
+      const { description, tags } = req.body
 
-      // ?�일 ?�보 ?�??
-      const [result] = await pool.query(
-        `INSERT INTO excel_files (filename, original_name, file_path, file_size, file_type, uploaded_by, description, tags, is_processed) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
+      // 파일 정보 저장
+      const result = await pool.query(
+        `INSERT INTO excel_files 
+         (filename, original_name, file_path, file_size, file_type, description, tags, uploaded_by) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+         RETURNING id`,
         [
-          req.file.filename,
-          req.file.originalname,
-          req.file.path,
-          req.file.size,
-          req.file.mimetype,
-          userId,
-          description || null,
-          tags ? JSON.stringify(tags) : null
+          file.filename,
+          file.originalname,
+          file.path,
+          file.size,
+          file.mimetype,
+          description || '',
+          tags ? JSON.stringify(tags.split(',').map((tag: string) => tag.trim())) : '[]',
+          userId
         ]
-      ) as any
+      )
 
-      const fileId = result.insertId
+      const fileId = result.rows[0].id
 
-      // 비동기로 ?�일 처리 ?�작
-      processExcelFile(req.file.path, fileId, userId, chunkSize, validateData)
-        .then(job => {
-          console.log(`File processing completed: ${fileId}`)
-        })
-        .catch(error => {
-          console.error(`File processing failed: ${fileId}`, error)
-        })
+      // 백그라운드에서 파일 처리
+      processExcelFile(fileId, file.path).catch(error => {
+        console.error('File processing error:', error)
+      })
 
       res.status(201).json({
         success: true,
-        message: '?�일???�로?�되?�습?�다. 처리 중입?�다.',
+        message: '파일이 성공적으로 업로드되었습니다.',
         data: {
           fileId,
-          filename: req.file.originalname,
-          fileSize: req.file.size,
-          status: 'processing'
+          filename: file.originalname,
+          size: file.size
         }
       })
     })
@@ -128,460 +108,375 @@ export const uploadExcel = async (req: Request, res: Response): Promise<void> =>
     console.error('Upload error:', error)
     res.status(500).json({
       success: false,
-      message: '?�일 ?�로??�??�류가 발생?�습?�다.'
+      message: '파일 업로드 중 오류가 발생했습니다.'
     })
   }
 }
 
-// ?�로??진행�?조회
+// 업로드 진행률 조회
 export const getUploadProgress = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
-    
-    const [files] = await pool.query(
-      'SELECT id, filename, original_name, is_processed, total_rows, total_columns, created_at FROM excel_files WHERE id = ?',
-      [fileId]
-    ) as any[]
+    const userId = req.user!.id
 
-    if (files.length === 0) {
+    const result = await pool.query(
+      'SELECT is_processed, processing_status FROM excel_files WHERE id = $1 AND uploaded_by = $2',
+      [fileId, userId]
+    )
+
+    if (result.rows.length === 0) {
       res.status(404).json({
         success: false,
-        message: '?�일??찾을 ???�습?�다.'
+        message: '파일을 찾을 수 없습니다.'
       })
       return
     }
 
-    const file = files[0]
-    
-    // 처리??????조회
-    const [dataCount] = await pool.query(
-      'SELECT COUNT(*) as count FROM excel_data WHERE file_id = ?',
-      [fileId]
-    ) as any[]
-
-    const processedRows = dataCount[0].count
-    const progress = file.total_rows > 0 ? Math.round((processedRows / file.total_rows) * 100) : 0
-
+    const file = result.rows[0]
     res.status(200).json({
       success: true,
       data: {
-        fileId: file.id,
-        filename: file.original_name,
         isProcessed: file.is_processed,
-        totalRows: file.total_rows,
-        processedRows,
-        progress,
-        totalColumns: file.total_columns,
-        createdAt: file.created_at
+        status: file.processing_status || 'pending'
       }
     })
   } catch (error) {
     console.error('Get progress error:', error)
     res.status(500).json({
       success: false,
-      message: '진행�?조회 �??�류가 발생?�습?�다.'
+      message: '진행률 조회 중 오류가 발생했습니다.'
     })
   }
 }
 
-// ?�이지?�이?�된 ?�이??조회 API
+// 엑셀 데이터 조회
 export const getExcelData = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
-    const page = parseInt(req.query.page as string) || 1
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100) // 최�? 100�?
-    const search = req.query.search as string
-    const sortBy = req.query.sortBy as string
-    const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'asc'
-    const columns = req.query.columns ? (req.query.columns as string).split(',') : undefined
+    const userId = req.user!.id
+    const { page = 1, limit = 50, search = '', sortBy = 'id', sortOrder = 'asc' } = req.query
 
-    const offset = (page - 1) * limit
+    const offset = (Number(page) - 1) * Number(limit)
 
-    // 캐시 ???�성
-    const cacheKey = generateDataCacheKey(fileId, page, limit, sortBy, sortOrder)
-    
-    // 캐시 ?�인
-    const cached = await getCache(cacheKey)
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        data: cached,
-        fromCache: true
+    // 파일 권한 확인
+    const fileResult = await pool.query(
+      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
+      [fileId, userId]
+    )
+
+    if (fileResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '파일을 찾을 수 없습니다.'
       })
       return
     }
 
-    // 검??조건 ?�성
-    const { query, params } = buildSearchQuery(
-      'SELECT * FROM excel_data WHERE file_id = ?',
-      search,
-      undefined,
-      sortBy,
-      sortOrder
+    const file = fileResult.rows[0]
+
+    if (!file.is_processed) {
+      res.status(400).json({
+        success: false,
+        message: '파일이 아직 처리되지 않았습니다.'
+      })
+      return
+    }
+
+    // 캐시 확인
+    const cacheKey = `excel_data_${fileId}_${page}_${limit}_${search}_${sortBy}_${sortOrder}`
+    const cachedData = await getFileCache(cacheKey)
+    
+    if (cachedData) {
+      res.status(200).json(cachedData)
+      return
+    }
+
+    // 데이터 조회
+    let whereClause = 'WHERE file_id = $1'
+    let params = [fileId]
+    let paramIndex = 2
+
+    if (search) {
+      whereClause += ` AND (data::text ILIKE $${paramIndex})`
+      params.push(`%${search}%`)
+      paramIndex++
+    }
+
+    // 전체 개수 조회
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total FROM excel_data ${whereClause}`,
+      params
     )
 
-    // file_id ?�라미터 추�?
-    const allParams = [fileId, ...params]
+    const total = countResult.rows[0].total
 
-    // ?�체 개수 조회
-    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as count')
-    const [countResult] = await pool.query(countQuery, allParams) as any[]
-    const total = countResult[0].count
+    // 데이터 목록 조회
+    const dataResult = await pool.query(
+      `SELECT * FROM excel_data 
+       ${whereClause}
+       ORDER BY ${sortBy} ${sortOrder.toUpperCase()}
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    )
 
-    // ?�이??조회
-    const dataQuery = query + ' LIMIT ? OFFSET ?'
-    const [data] = await pool.query(dataQuery, [...allParams, limit, offset]) as any[]
+    const data = dataResult.rows.map((row: any) => ({
+      ...row,
+      data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
+    }))
 
-    // 컬럼 ?�보 조회
-    const columnsInfo = await getColumns(fileId)
+    // 컬럼 정보 조회
+    const columnsResult = await pool.query(
+      'SELECT column_name, column_type FROM excel_columns WHERE file_id = $1 ORDER BY column_index',
+      [fileId]
+    )
 
-    // ?�답 ?�이??구성
-    const response: ExcelDataResponse = {
-      data: data.map(row => ({
-        id: row.id,
-        file_id: row.file_id,
-        row_index: row.row_index,
-        row_data: JSON.parse(row.row_data),
-        is_valid: row.is_valid,
-        validation_errors: row.validation_errors ? JSON.parse(row.validation_errors) : undefined,
-        created_at: row.created_at,
-        updated_at: row.updated_at
-      })),
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasNext: page < Math.ceil(total / limit),
-        hasPrev: page > 1
-      },
-      columns: columnsInfo,
-      summary: {
-        totalRows: total,
-        validRows: data.filter(row => row.is_valid).length,
-        invalidRows: data.filter(row => !row.is_valid).length
+    const response = {
+      success: true,
+      data: {
+        data,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages: Math.ceil(total / Number(limit))
+        },
+        columns: columnsResult.rows,
+        summary: {
+          totalRows: total,
+          totalColumns: columnsResult.rows.length
+        }
       }
     }
 
-    // ?�답 최적??
-    const optimizedResponse = optimizePaginationResponse(response, false)
+    // 캐시 저장
+    await setFileCache(cacheKey, response, 300) // 5분
 
-    // 캐시 ?�??
-    await setCache(cacheKey, optimizedResponse, 'data')
-
-    res.status(200).json({
-      success: true,
-      data: optimizedResponse
-    })
+    res.status(200).json(response)
   } catch (error) {
     console.error('Get data error:', error)
     res.status(500).json({
       success: false,
-      message: '?�이??조회 �??�류가 발생?�습?�다.'
+      message: '데이터 조회 중 오류가 발생했습니다.'
     })
   }
 }
 
-// 고급 검??API
+// 엑셀 데이터 검색
 export const searchExcelData = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
-    const {
-      searchTerm,
-      columnFilters,
-      rangeFilters,
-      booleanFilters,
-      sortBy,
-      sortOrder = 'asc',
-      page = 1,
-      limit = 50
-    }: SearchCriteria = req.body
+    const userId = req.user!.id
+    const { page = 1, limit = 50 } = req.query
+    const { criteria } = req.body
 
-    const offset = (page - 1) * limit
+    const offset = (Number(page) - 1) * Number(limit)
 
-    // 캐시 ???�성
-    const cacheKey = generateSearchCacheKey(fileId, searchTerm || '', {
-      columnFilters,
-      rangeFilters,
-      booleanFilters,
-      sortBy,
-      sortOrder
-    }, page, limit)
+    // 파일 권한 확인
+    const fileResult = await pool.query(
+      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
+      [fileId, userId]
+    )
 
-    // 캐시 ?�인 (?�시�?비활?�화)
-    // const cached = await getCache(cacheKey)
-    // if (cached) {
-    //   res.status(200).json({
-    //     success: true,
-    //     data: cached,
-    //     fromCache: true
-    //   })
-    //   return
-    // }
+    if (fileResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '파일을 찾을 수 없습니다.'
+      })
+      return
+    }
 
-    const startTime = Date.now()
+    const file = fileResult.rows[0]
 
-    // 검??조건 구성
-    const filters = { ...columnFilters, ...booleanFilters }
-    if (rangeFilters) {
-      Object.entries(rangeFilters).forEach(([key, range]) => {
-        filters[key] = range
+    if (!file.is_processed) {
+      res.status(400).json({
+        success: false,
+        message: '파일이 아직 처리되지 않았습니다.'
+      })
+      return
+    }
+
+    // 검색 조건 구성
+    let whereClause = 'WHERE file_id = $1'
+    let params = [fileId]
+    let paramIndex = 2
+
+    if (criteria.search) {
+      whereClause += ` AND (data::text ILIKE $${paramIndex})`
+      params.push(`%${criteria.search}%`)
+      paramIndex++
+    }
+
+    if (criteria.filters && criteria.filters.length > 0) {
+      criteria.filters.forEach((filter: any) => {
+        whereClause += ` AND (data->>'${filter.column}')::${filter.type} ${filter.operator} $${paramIndex}`
+        params.push(filter.value)
+        paramIndex++
       })
     }
 
-    // 검??쿼리 ?�성
-    const { query, params } = buildSearchQuery(
-      'SELECT * FROM excel_data WHERE file_id = ?',
-      searchTerm,
-      filters,
-      sortBy,
-      sortOrder
+    // 전체 개수 조회
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total FROM excel_data ${whereClause}`,
+      params
     )
 
-    // file_id ?�라미터 추�?
-    const allParams = [fileId, ...params]
+    const total = countResult.rows[0].total
 
-    console.log('=== 검???�버�?===');
-    console.log('FileId:', fileId);
-    console.log('SearchTerm:', searchTerm);
-    console.log('Filters:', filters);
-    console.log('Query:', query);
-    console.log('Params:', allParams);
+    // 데이터 목록 조회
+    const dataResult = await pool.query(
+      `SELECT * FROM excel_data 
+       ${whereClause}
+       ORDER BY id ASC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    )
 
-    // ?�제 ?�이?�베?�스???� 값들 ?�인
-    const [teamValues] = await pool.query(
-      'SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.?�치?�")) as team FROM excel_data WHERE file_id = ? ORDER BY team',
-      [fileId]
-    ) as any[];
-    console.log('?�이?�베?�스???�제 ?� 값들:', teamValues.map((row: any) => row.team));
-
-    // ?�택???�???�???�제 ?�이??개수 ?�인
-    if (filters['?�치?�']) {
-      const [selectedTeamCount] = await pool.query(
-        'SELECT COUNT(*) as count FROM excel_data WHERE file_id = ? AND JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.?�치?�")) = ?',
-        [fileId, filters['?�치?�']]
-      ) as any[];
-      console.log(`?�택???� "${filters['?�치?�']}"???�제 ?�이??개수:`, selectedTeamCount[0].count);
-      
-      // ?�택???�???�플 ?�이???�인
-      const [sampleData] = await pool.query(
-        'SELECT id, row_index, JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.?�치?�")) as team FROM excel_data WHERE file_id = ? AND JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.?�치?�")) = ? LIMIT 3',
-        [fileId, filters['?�치?�']]
-      ) as any[];
-      console.log(`?�택???� "${filters['?�치?�']}"???�플 ?�이??`, sampleData);
-    }
-
-    // ?�체 개수 조회
-    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as count')
-    console.log('Count Query:', countQuery);
-    const [countResult] = await pool.query(countQuery, allParams) as any[]
-    const total = countResult[0].count
-    console.log('Total count:', total);
-
-    // ?�이??조회
-    const dataQuery = query + ' LIMIT ? OFFSET ?'
-    const [data] = await pool.query(dataQuery, [...allParams, limit, offset]) as any[]
-
-    const processingTime = Date.now() - startTime
-
-    // 컬럼 ?�보 조회
-    const columnsInfo = await getColumns(fileId)
-
-    // ?�답 ?�이??구성
-    const response: SearchResponse = {
-      data: data.map(row => ({
-        id: row.id,
-        file_id: row.file_id,
-        row_index: row.row_index,
-        row_data: JSON.parse(row.row_data),
-        is_valid: row.is_valid,
-        validation_errors: row.validation_errors ? JSON.parse(row.validation_errors) : undefined,
-        created_at: row.created_at,
-        updated_at: row.updated_at
-      })),
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasNext: page < Math.ceil(total / limit),
-        hasPrev: page > 1
-      },
-      columns: columnsInfo,
-      searchInfo: {
-        searchTerm,
-        appliedFilters: { columnFilters, rangeFilters, booleanFilters },
-        processingTime
-      }
-    }
-
-    // ?�답 최적??
-    const optimizedResponse = optimizePaginationResponse(response, false)
-
-    // 캐시 ?�??(?�시�?비활?�화)
-    // await setCache(cacheKey, optimizedResponse, 'search')
-
-    // 캐시 방�? ?�더 추�?
-    res.set({
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
+    const data = dataResult.rows.map((row: any) => ({
+      ...row,
+      data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
+    }))
 
     res.status(200).json({
       success: true,
-      data: optimizedResponse
+      data: {
+        data,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages: Math.ceil(total / Number(limit))
+        },
+        searchInfo: {
+          criteria,
+          totalResults: total
+        }
+      }
     })
   } catch (error) {
     console.error('Search error:', error)
     res.status(500).json({
       success: false,
-      message: '검??�??�류가 발생?�습?�다.'
+      message: '검색 중 오류가 발생했습니다.'
     })
   }
 }
 
-// 컬럼�??�약 ?�보 API
+// 엑셀 요약 정보 조회
 export const getExcelSummary = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
+    const userId = req.user!.id
 
-    // 캐시 ???�성
-    const cacheKey = generateSummaryCacheKey(fileId)
+    // 파일 권한 확인
+    const fileResult = await pool.query(
+      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
+      [fileId, userId]
+    )
 
-    // 캐시 ?�인
-    const cached = await getCache(cacheKey)
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        data: cached,
-        fromCache: true
+    if (fileResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '파일을 찾을 수 없습니다.'
       })
       return
     }
 
-    // ?�일 ?�보 조회
-    const fileInfo = await getFileInfo(fileId)
-    const columns = await getColumns(fileId)
+    const file = fileResult.rows[0]
 
-    // 컬럼�??�약 ?�보 ?�성
-    const columnSummaries = await Promise.all(
-      columns.map(async (column) => {
-        const [result] = await pool.query(
-          `SELECT 
-            COUNT(*) as total_values,
-            COUNT(DISTINCT JSON_EXTRACT(row_data, '$.${column.column_name}')) as unique_values,
-            COUNT(CASE WHEN JSON_EXTRACT(row_data, '$.${column.column_name}') IS NULL THEN 1 END) as null_values,
-            MIN(JSON_EXTRACT(row_data, '$.${column.column_name}')) as min_value,
-            MAX(JSON_EXTRACT(row_data, '$.${column.column_name}')) as max_value
-           FROM excel_data 
-           WHERE file_id = ?`,
-          [fileId]
-        ) as any[]
-
-        const stats = result[0]
-
-        // ?�플 값들 조회
-        const [samples] = await pool.query(
-          `SELECT DISTINCT JSON_EXTRACT(row_data, '$.${column.column_name}') as value
-           FROM excel_data 
-           WHERE file_id = ? AND JSON_EXTRACT(row_data, '$.${column.column_name}') IS NOT NULL
-           LIMIT 10`,
-          [fileId]
-        ) as any[]
-
-        // 값별 개수 조회 (?�위 10�?
-        const [valueCounts] = await pool.query(
-          `SELECT 
-            JSON_EXTRACT(row_data, '$.${column.column_name}') as value,
-            COUNT(*) as count
-           FROM excel_data 
-           WHERE file_id = ? AND JSON_EXTRACT(row_data, '$.${column.column_name}') IS NOT NULL
-           GROUP BY JSON_EXTRACT(row_data, '$.${column.column_name}')
-           ORDER BY count DESC
-           LIMIT 10`,
-          [fileId]
-        ) as any[]
-
-        return {
-          column_name: column.column_name,
-          column_type: column.column_type,
-          total_values: stats.total_values,
-          unique_values: stats.unique_values,
-          null_values: stats.null_values,
-          min_value: stats.min_value,
-          max_value: stats.max_value,
-          sample_values: samples.map((s: any) => s.value),
-          value_counts: valueCounts.map((vc: any) => ({
-            value: vc.value,
-            count: vc.count
-          }))
-        }
+    if (!file.is_processed) {
+      res.status(400).json({
+        success: false,
+        message: '파일이 아직 처리되지 않았습니다.'
       })
-    )
-
-    const summary: ExcelSummary = {
-      file_id: fileId,
-      total_rows: fileInfo.total_rows,
-      total_columns: fileInfo.total_columns,
-      columns: columnSummaries,
-      processing_time: 0,
-      last_updated: new Date()
+      return
     }
 
-    // 캐시 ?�??
-    await setCache(cacheKey, summary, 'summary')
+    // 캐시 확인
+    const cacheKey = `excel_summary_${fileId}`
+    const cachedData = await getFileCache(cacheKey)
+    
+    if (cachedData) {
+      res.status(200).json(cachedData)
+      return
+    }
 
-    res.status(200).json({
+    // 컬럼 정보 조회
+    const columnsResult = await pool.query(
+      'SELECT column_name, column_type, column_index FROM excel_columns WHERE file_id = $1 ORDER BY column_index',
+      [fileId]
+    )
+
+    // 데이터 통계 조회
+    const statsResult = await pool.query(
+      'SELECT COUNT(*) as total_rows FROM excel_data WHERE file_id = $1',
+      [fileId]
+    )
+
+    const response = {
       success: true,
-      data: summary
-    })
+      data: {
+        file: {
+          id: file.id,
+          filename: file.original_name,
+          size: file.file_size,
+          type: file.file_type,
+          totalRows: statsResult.rows[0].total_rows,
+          totalColumns: columnsResult.rows.length,
+          uploadedAt: file.created_at
+        },
+        columns: columnsResult.rows
+      }
+    }
+
+    // 캐시 저장
+    await setFileCache(cacheKey, response, 600) // 10분
+
+    res.status(200).json(response)
   } catch (error) {
     console.error('Get summary error:', error)
     res.status(500).json({
       success: false,
-      message: '?�약 ?�보 조회 �??�류가 발생?�습?�다.'
+      message: '요약 정보 조회 중 오류가 발생했습니다.'
     })
   }
 }
 
-// ?�일 목록 조회
+// 엑셀 파일 목록 조회
 export const getExcelFiles = async (req: Request, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1
-    const limit = parseInt(req.query.limit as string) || 20
-    const search = req.query.search as string
     const userId = req.user!.id
+    const { page = 1, limit = 10, search = '' } = req.query
 
-    const offset = (page - 1) * limit
+    const offset = (Number(page) - 1) * Number(limit)
 
-    let whereClause = 'WHERE 1=1'
-    const params: any[] = []
+    let whereClause = 'WHERE uploaded_by = $1'
+    let params = [userId]
 
     if (search) {
-      whereClause += ' AND (original_name LIKE ? OR description LIKE ?)'
-      params.push(`%${search}%`, `%${search}%`)
+      whereClause += ' AND (original_name ILIKE $2 OR description ILIKE $2)'
+      params.push(`%${search}%`)
     }
 
-    // ?�체 개수 조회
-    const [countResult] = await pool.query(
+    // 전체 개수 조회
+    const countResult = await pool.query(
       `SELECT COUNT(*) as total FROM excel_files ${whereClause}`,
       params
-    ) as any[]
+    )
 
-    const total = countResult[0].total
+    const total = countResult.rows[0].total
 
-    // ?�일 목록 조회
-    const [files] = await pool.query(
+    // 파일 목록 조회
+    const filesResult = await pool.query(
       `SELECT 
         id, filename, original_name, file_size, file_type, total_rows, total_columns,
         description, tags, is_processed, uploaded_by, created_at, updated_at
        FROM excel_files 
        ${whereClause}
        ORDER BY created_at DESC
-       LIMIT ? OFFSET ?`,
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
-    ) as any[]
+    )
+    const files = filesResult.rows
 
     res.status(200).json({
       success: true,
@@ -602,105 +497,120 @@ export const getExcelFiles = async (req: Request, res: Response): Promise<void> 
     console.error('Get files error:', error)
     res.status(500).json({
       success: false,
-      message: '?�일 목록 조회 �??�류가 발생?�습?�다.'
+      message: '파일 목록 조회 중 오류가 발생했습니다.'
     })
   }
 }
 
-// ?�일 ??��
+// 파일 삭제
 export const deleteExcelFile = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
     const userId = req.user!.id
 
-    // ?�일 ?�보 조회
-    const [files] = await pool.query(
-      'SELECT * FROM excel_files WHERE id = ? AND uploaded_by = ?',
+    // 파일 정보 조회
+    const fileResult = await pool.query(
+      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
       [fileId, userId]
-    ) as any[]
+    )
 
-    if (files.length === 0) {
+    if (fileResult.rows.length === 0) {
       res.status(404).json({
         success: false,
-        message: '?�일??찾을 ???�습?�다.'
+        message: '파일을 찾을 수 없습니다.'
       })
       return
     }
 
-    const file = files[0]
+    const file = fileResult.rows[0]
 
-    // ?�일 ?�스?�에????��
+    // 파일 시스템에서 삭제
     if (fs.existsSync(file.file_path)) {
       fs.unlinkSync(file.file_path)
     }
 
-    // ?�이?�베?�스?�서 ??�� (CASCADE�?관???�이?�도 ??��??
-    await pool.query('DELETE FROM excel_files WHERE id = ?', [fileId])
+    // 데이터베이스에서 삭제 (CASCADE로 관련 데이터도 삭제됨)
+    await pool.query('DELETE FROM excel_files WHERE id = $1', [fileId])
 
-    // 캐시 ?�리
+    // 캐시 정리
     await clearFileCache(fileId)
 
     res.status(200).json({
       success: true,
-      message: '?�일????��?�었?�니??'
+      message: '파일이 삭제되었습니다.'
     })
   } catch (error) {
     console.error('Delete file error:', error)
     res.status(500).json({
       success: false,
-      message: '?�일 ??�� �??�류가 발생?�습?�다.'
+      message: '파일 삭제 중 오류가 발생했습니다.'
     })
   }
-} 
+}
 
-// ?� 목록 조회 API
+// 팀 목록 조회 API
 export const getTeamList = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
-    const columnIndex = parseInt(req.query.columnIndex as string) || 8 // 기본�? I??(9번째 컬럼)
+    const { columnIndex = 0 } = req.query
+    const userId = req.user!.id
 
-    // 컬럼 ?�보 조회
-    const [columns] = await pool.query(
-      'SELECT * FROM excel_columns WHERE file_id = ? AND column_index = ?',
-      [fileId, columnIndex]
-    ) as any[]
+    // 파일 권한 확인
+    const fileResult = await pool.query(
+      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
+      [fileId, userId]
+    )
 
-    if (columns.length === 0) {
+    if (fileResult.rows.length === 0) {
       res.status(404).json({
         success: false,
-        message: '?�당 컬럼??찾을 ???�습?�다.'
+        message: '파일을 찾을 수 없습니다.'
       })
       return
     }
 
-    const columnName = columns[0].column_name
+    // 컬럼 정보 조회
+    const columnResult = await pool.query(
+      'SELECT column_name FROM excel_columns WHERE file_id = $1 AND column_index = $2',
+      [fileId, columnIndex]
+    )
 
-    // ?�체 ?�이?�에???� 목록 추출
-    const [teams] = await pool.query(
-      `SELECT DISTINCT JSON_EXTRACT(row_data, '$.${columnName}') as team_name
+    if (columnResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '컬럼을 찾을 수 없습니다.'
+      })
+      return
+    }
+
+    const columnName = columnResult.rows[0].column_name
+
+    // 팀 목록 조회 (중복 제거)
+    const teamsResult = await pool.query(
+      `SELECT DISTINCT data->>'${columnName}' as team_name 
        FROM excel_data 
-       WHERE file_id = ? 
-       AND JSON_EXTRACT(row_data, '$.${columnName}') IS NOT NULL
-       AND JSON_EXTRACT(row_data, '$.${columnName}') != ''
+       WHERE file_id = $1 
+       AND data->>'${columnName}' IS NOT NULL 
+       AND data->>'${columnName}' != ''
        ORDER BY team_name`,
       [fileId]
-    ) as any[]
+    )
 
-    const teamList = teams.map((team: any) => team.team_name)
+    const teams = teamsResult.rows.map((row: any) => row.team_name)
 
     res.status(200).json({
       success: true,
       data: {
-        teams: teamList,
-        columnName: columnName,
-        columnIndex: columnIndex
+        teams,
+        columnName,
+        columnIndex: Number(columnIndex)
       }
     })
   } catch (error) {
     console.error('Get team list error:', error)
     res.status(500).json({
       success: false,
-      message: '?� 목록 조회 �??�류가 발생?�습?�다.'
+      message: '팀 목록 조회 중 오류가 발생했습니다.'
     })
   }
 } 
