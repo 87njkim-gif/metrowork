@@ -9,7 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
 const REFRESH_TOKEN_EXPIRES_IN = '30d'
 
-// JWT ?�큰 ?�성
+// JWT 토큰 생성
 export const generateToken = (user: UserWithoutPassword): string => {
   const payload: JwtPayload = {
     userId: user.id,
@@ -18,15 +18,15 @@ export const generateToken = (user: UserWithoutPassword): string => {
     iat: Math.floor(Date.now() / 1000)
   }
 
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+  return jwt.sign(payload, JWT_SECRET as string, { expiresIn: JWT_EXPIRES_IN })
 }
 
-// 리프?�시 ?�큰 ?�성
+// 리프레시 토큰 생성
 export const generateRefreshToken = (): string => {
   return crypto.randomBytes(64).toString('hex')
 }
 
-// JWT ?�큰 검�?
+// JWT 토큰 검증
 export const verifyToken = (token: string): JwtPayload => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
@@ -36,24 +36,25 @@ export const verifyToken = (token: string): JwtPayload => {
   }
 }
 
-// 리프?�시 ?�큰 ?�??
+// 리프레시 토큰 저장
 export const saveRefreshToken = async (userId: number, refreshToken: string): Promise<void> => {
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 30) // 30 days
 
   await pool.query(
-    'INSERT INTO user_sessions (user_id, refresh_token, expires_at) VALUES (?, ?, ?)',
+    'INSERT INTO user_sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, $3)',
     [userId, refreshToken, expiresAt]
   )
 }
 
-// 리프?�시 ?�큰 검�?
+// 리프레시 토큰 검증
 export const verifyRefreshToken = async (refreshToken: string): Promise<UserWithoutPassword | null> => {
   try {
-    const [sessions] = await pool.query(
-      'SELECT user_id, expires_at FROM user_sessions WHERE refresh_token = ? AND is_active = TRUE',
+    const result = await pool.query(
+      'SELECT user_id, expires_at FROM user_sessions WHERE refresh_token = $1 AND is_active = TRUE',
       [refreshToken]
-    ) as any[]
+    )
+    const sessions = result.rows
 
     if (sessions.length === 0) {
       return null
@@ -61,19 +62,20 @@ export const verifyRefreshToken = async (refreshToken: string): Promise<UserWith
 
     const session = sessions[0]
     if (new Date() > new Date(session.expires_at)) {
-      // 만료???�큰 비활?�화
+      // 만료된 토큰 비활성화
       await pool.query(
-        'UPDATE user_sessions SET is_active = FALSE WHERE refresh_token = ?',
+        'UPDATE user_sessions SET is_active = FALSE WHERE refresh_token = $1',
         [refreshToken]
       )
       return null
     }
 
-    // ?�용???�보 조회
-    const [users] = await pool.query(
-      'SELECT id, email, name, role, status, phone, department, position, profile_image, last_login_at, created_at, updated_at, approved_at, approved_by, rejected_at, rejected_by, rejection_reason FROM users WHERE id = ?',
+    // 사용자 정보 조회
+    const userResult = await pool.query(
+      'SELECT id, email, name, role, status, phone, department, position, profile_image, last_login_at, created_at, updated_at, approved_at, approved_by, rejected_at, rejected_by, rejection_reason FROM users WHERE id = $1',
       [session.user_id]
-    ) as any[]
+    )
+    const users = userResult.rows
 
     if (users.length === 0) {
       return null
@@ -86,38 +88,39 @@ export const verifyRefreshToken = async (refreshToken: string): Promise<UserWith
   }
 }
 
-// 리프?�시 ?�큰 무효??
+// 리프레시 토큰 무효화
 export const invalidateRefreshToken = async (refreshToken: string): Promise<void> => {
   await pool.query(
-    'UPDATE user_sessions SET is_active = FALSE WHERE refresh_token = ?',
+    'UPDATE user_sessions SET is_active = FALSE WHERE refresh_token = $1',
     [refreshToken]
   )
 }
 
-// ?�용?�의 모든 ?�션 무효??
+// 사용자의 모든 세션 무효화
 export const invalidateAllUserSessions = async (userId: number): Promise<void> => {
   await pool.query(
-    'UPDATE user_sessions SET is_active = FALSE WHERE user_id = ?',
+    'UPDATE user_sessions SET is_active = FALSE WHERE user_id = $1',
     [userId]
   )
 }
 
-// 만료???�션 ?�리
+// 만료된 세션 정리
 export const cleanupExpiredSessions = async (): Promise<void> => {
   await pool.query(
     'UPDATE user_sessions SET is_active = FALSE WHERE expires_at < NOW()'
   )
 }
 
-// ?�큰?�서 ?�용???�보 추출 (미들?�어??
+// 토큰에서 사용자 정보 추출 (미들웨어용)
 export const extractUserFromToken = async (token: string): Promise<UserWithoutPassword | null> => {
   try {
     const decoded = verifyToken(token)
     
-    const [users] = await pool.query(
-      'SELECT id, email, name, role, status, phone, department, position, profile_image, last_login_at, created_at, updated_at, approved_at, approved_by, rejected_at, rejected_by, rejection_reason FROM users WHERE id = ? AND status = ?',
+    const result = await pool.query(
+      'SELECT id, email, name, role, status, phone, department, position, profile_image, last_login_at, created_at, updated_at, approved_at, approved_by, rejected_at, rejected_by, rejection_reason FROM users WHERE id = $1 AND status = $2',
       [decoded.userId, 'approved']
-    ) as any[]
+    )
+    const users = result.rows
 
     if (users.length === 0) {
       return null
@@ -129,7 +132,7 @@ export const extractUserFromToken = async (token: string): Promise<UserWithoutPa
   }
 }
 
-// ?�큰 만료 ?�간 계산
+// 토큰 만료 시간 계산
 export const getTokenExpirationTime = (): number => {
   const expiresIn = JWT_EXPIRES_IN
   if (expiresIn.includes('d')) {

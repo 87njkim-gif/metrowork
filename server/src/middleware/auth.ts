@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { extractUserFromToken } from '../utils/jwt'
 import { UserWithoutPassword } from '../types/auth'
 
-// Request ?�터?�이???�장
+// Request 인터페이스 확장
 declare global {
   namespace Express {
     interface Request {
@@ -12,7 +12,7 @@ declare global {
   }
 }
 
-// JWT ?�큰 추출 미들?�어
+// JWT 토큰 추출 미들웨어
 export const extractToken = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization
   
@@ -24,7 +24,7 @@ export const extractToken = (req: Request, res: Response, next: NextFunction): v
   next()
 }
 
-// ?�증 미들?�어
+// 인증 미들웨어
 export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = req.token || req.headers.authorization?.replace('Bearer ', '')
@@ -32,7 +32,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     if (!token) {
       res.status(401).json({
         success: false,
-        message: '?�증 ?�큰???�요?�니??'
+        message: '인증 토큰이 필요합니다.'
       })
       return
     }
@@ -42,7 +42,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     if (!user) {
       res.status(401).json({
         success: false,
-        message: '?�효?��? ?��? ?�큰?�니??'
+        message: '유효하지 않은 토큰입니다.'
       })
       return
     }
@@ -53,17 +53,17 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     console.error('Authentication error:', error)
     res.status(401).json({
       success: false,
-      message: '?�증???�패?�습?�다.'
+      message: '인증에 실패했습니다.'
     })
   }
 }
 
-// ?�인???�용?�만 ?�용
+// 승인된 사용자만 사용
 export const requireApproved = (req: Request, res: Response, next: NextFunction): void => {
   if (!req.user) {
     res.status(401).json({
       success: false,
-      message: '?�증???�요?�니??'
+      message: '인증이 필요합니다.'
     })
     return
   }
@@ -71,7 +71,7 @@ export const requireApproved = (req: Request, res: Response, next: NextFunction)
   if (req.user.status !== 'approved') {
     res.status(403).json({
       success: false,
-      message: '?�인???�용?�만 ?�근?????�습?�다.'
+      message: '승인된 사용자만 접근 가능합니다.'
     })
     return
   }
@@ -84,7 +84,7 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
   if (!req.user) {
     res.status(401).json({
       success: false,
-      message: '?�증???�요?�니??'
+      message: '인증이 필요합니다.'
     })
     return
   }
@@ -92,7 +92,7 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
   if (req.user.role !== 'admin') {
     res.status(403).json({
       success: false,
-      message: '관리자 권한???�요?�니??'
+      message: '관리자 권한이 필요합니다.'
     })
     return
   }
@@ -100,12 +100,12 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
   next()
 }
 
-// 관리자 ?�는 본인 체크
+// 관리자 또는 본인 체크
 export const requireAdminOrSelf = (req: Request, res: Response, next: NextFunction): void => {
   if (!req.user) {
     res.status(401).json({
       success: false,
-      message: '?�증???�요?�니??'
+      message: '인증이 필요합니다.'
     })
     return
   }
@@ -117,12 +117,12 @@ export const requireAdminOrSelf = (req: Request, res: Response, next: NextFuncti
   } else {
     res.status(403).json({
       success: false,
-      message: '권한???�습?�다.'
+      message: '권한이 없습니다.'
     })
   }
 }
 
-// ?�택???�증 (?�큰???�으�??�용???�보 추�?)
+// 선택적 인증 (토큰이 있으면 사용자 정보 추출)
 export const optionalAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = req.token || req.headers.authorization?.replace('Bearer ', '')
@@ -136,18 +136,18 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     
     next()
   } catch (error) {
-    // ?�큰???�효?��? ?�아??계속 진행
+    // 토큰이 유효하지 않아도 계속 진행
     next()
   }
 }
 
-// ??���?권한 체크
+// 특정 권한 체크
 export const requireRole = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
         success: false,
-        message: '?�증???�요?�니??'
+        message: '인증이 필요합니다.'
       })
       return
     }
@@ -155,7 +155,7 @@ export const requireRole = (roles: string[]) => {
     if (!roles.includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        message: '?�요??권한???�습?�다.'
+        message: '필요한 권한이 없습니다.'
       })
       return
     }
@@ -164,13 +164,13 @@ export const requireRole = (roles: string[]) => {
   }
 }
 
-// ?�태�?권한 체크
+// 특정 상태 권한 체크
 export const requireStatus = (statuses: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
         success: false,
-        message: '?�증???�요?�니??'
+        message: '인증이 필요합니다.'
       })
       return
     }
@@ -178,7 +178,7 @@ export const requireStatus = (statuses: string[]) => {
     if (!statuses.includes(req.user.status)) {
       res.status(403).json({
         success: false,
-        message: '?�요???�태가 ?�닙?�다.'
+        message: '필요한 상태가 아닙니다.'
       })
       return
     }
@@ -187,24 +187,24 @@ export const requireStatus = (statuses: string[]) => {
   }
 }
 
-// ?�러 ?�들�?미들?�어
+// 에러 핸들러 미들웨어
 export const authErrorHandler = (error: Error, req: Request, res: Response, next: NextFunction): void => {
   console.error('Auth middleware error:', error)
   
   if (error.name === 'JsonWebTokenError') {
     res.status(401).json({
       success: false,
-      message: '?�효?��? ?��? ?�큰?�니??'
+      message: '유효하지 않은 토큰입니다.'
     })
   } else if (error.name === 'TokenExpiredError') {
     res.status(401).json({
       success: false,
-      message: '?�큰??만료?�었?�니??'
+      message: '토큰이 만료되었습니다.'
     })
   } else {
     res.status(500).json({
       success: false,
-      message: '?�증 처리 �??�류가 발생?�습?�다.'
+      message: '인증 처리 중 오류가 발생했습니다.'
     })
   }
 } 
