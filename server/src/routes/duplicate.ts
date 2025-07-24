@@ -3,7 +3,7 @@ import { checkDuplicate, checkDuplicateValidation } from '../controllers/duplica
 
 const router = Router()
 
-// 이름+생년월일 중복 확인
+// ?�름+?�년?�일 중복 ?�인
 router.post('/check-duplicate', checkDuplicateValidation, checkDuplicate)
 
 export default router 

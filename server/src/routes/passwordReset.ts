@@ -8,10 +8,10 @@ import {
 
 const router = Router()
 
-// 비밀번호 재설정 요청
+// 비�?번호 ?�설???�청
 router.post('/reset-password', resetPasswordValidation, resetPassword)
 
-// 비밀번호 재설정 토큰 검증 및 새 비밀번호 설정
+// 비�?번호 ?�설???�큰 검�?�???비�?번호 ?�정
 router.post('/confirm-reset', confirmPasswordResetValidation, confirmPasswordReset)
 
 export default router 

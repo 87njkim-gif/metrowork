@@ -9,7 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
 const REFRESH_TOKEN_EXPIRES_IN = '30d'
 
-// JWT 토큰 생성
+// JWT ?�큰 ?�성
 export const generateToken = (user: UserWithoutPassword): string => {
   const payload: JwtPayload = {
     userId: user.id,
@@ -21,12 +21,12 @@ export const generateToken = (user: UserWithoutPassword): string => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
 }
 
-// 리프레시 토큰 생성
+// 리프?�시 ?�큰 ?�성
 export const generateRefreshToken = (): string => {
   return crypto.randomBytes(64).toString('hex')
 }
 
-// JWT 토큰 검증
+// JWT ?�큰 검�?
 export const verifyToken = (token: string): JwtPayload => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
@@ -36,21 +36,21 @@ export const verifyToken = (token: string): JwtPayload => {
   }
 }
 
-// 리프레시 토큰 저장
+// 리프?�시 ?�큰 ?�??
 export const saveRefreshToken = async (userId: number, refreshToken: string): Promise<void> => {
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 30) // 30 days
 
-  await pool.execute(
+  await pool.query(
     'INSERT INTO user_sessions (user_id, refresh_token, expires_at) VALUES (?, ?, ?)',
     [userId, refreshToken, expiresAt]
   )
 }
 
-// 리프레시 토큰 검증
+// 리프?�시 ?�큰 검�?
 export const verifyRefreshToken = async (refreshToken: string): Promise<UserWithoutPassword | null> => {
   try {
-    const [sessions] = await pool.execute(
+    const [sessions] = await pool.query(
       'SELECT user_id, expires_at FROM user_sessions WHERE refresh_token = ? AND is_active = TRUE',
       [refreshToken]
     ) as any[]
@@ -61,16 +61,16 @@ export const verifyRefreshToken = async (refreshToken: string): Promise<UserWith
 
     const session = sessions[0]
     if (new Date() > new Date(session.expires_at)) {
-      // 만료된 토큰 비활성화
-      await pool.execute(
+      // 만료???�큰 비활?�화
+      await pool.query(
         'UPDATE user_sessions SET is_active = FALSE WHERE refresh_token = ?',
         [refreshToken]
       )
       return null
     }
 
-    // 사용자 정보 조회
-    const [users] = await pool.execute(
+    // ?�용???�보 조회
+    const [users] = await pool.query(
       'SELECT id, email, name, role, status, phone, department, position, profile_image, last_login_at, created_at, updated_at, approved_at, approved_by, rejected_at, rejected_by, rejection_reason FROM users WHERE id = ?',
       [session.user_id]
     ) as any[]
@@ -86,35 +86,35 @@ export const verifyRefreshToken = async (refreshToken: string): Promise<UserWith
   }
 }
 
-// 리프레시 토큰 무효화
+// 리프?�시 ?�큰 무효??
 export const invalidateRefreshToken = async (refreshToken: string): Promise<void> => {
-  await pool.execute(
+  await pool.query(
     'UPDATE user_sessions SET is_active = FALSE WHERE refresh_token = ?',
     [refreshToken]
   )
 }
 
-// 사용자의 모든 세션 무효화
+// ?�용?�의 모든 ?�션 무효??
 export const invalidateAllUserSessions = async (userId: number): Promise<void> => {
-  await pool.execute(
+  await pool.query(
     'UPDATE user_sessions SET is_active = FALSE WHERE user_id = ?',
     [userId]
   )
 }
 
-// 만료된 세션 정리
+// 만료???�션 ?�리
 export const cleanupExpiredSessions = async (): Promise<void> => {
-  await pool.execute(
+  await pool.query(
     'UPDATE user_sessions SET is_active = FALSE WHERE expires_at < NOW()'
   )
 }
 
-// 토큰에서 사용자 정보 추출 (미들웨어용)
+// ?�큰?�서 ?�용???�보 추출 (미들?�어??
 export const extractUserFromToken = async (token: string): Promise<UserWithoutPassword | null> => {
   try {
     const decoded = verifyToken(token)
     
-    const [users] = await pool.execute(
+    const [users] = await pool.query(
       'SELECT id, email, name, role, status, phone, department, position, profile_image, last_login_at, created_at, updated_at, approved_at, approved_by, rejected_at, rejected_by, rejection_reason FROM users WHERE id = ? AND status = ?',
       [decoded.userId, 'approved']
     ) as any[]
@@ -129,7 +129,7 @@ export const extractUserFromToken = async (token: string): Promise<UserWithoutPa
   }
 }
 
-// 토큰 만료 시간 계산
+// ?�큰 만료 ?�간 계산
 export const getTokenExpirationTime = (): number => {
   const expiresIn = JWT_EXPIRES_IN
   if (expiresIn.includes('d')) {

@@ -28,7 +28,7 @@ import {
 
 const pool = getPool()
 
-// 파일 업로드 설정
+// ?�일 ?�로???�정
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, '../../uploads')
@@ -58,12 +58,12 @@ const upload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true)
     } else {
-      cb(new Error('지원하지 않는 파일 형식입니다.'))
+      cb(new Error('지?�하지 ?�는 ?�일 ?�식?�니??'))
     }
   }
 })
 
-// 엑셀 파일 업로드 API
+// ?��? ?�일 ?�로??API
 export const uploadExcel = async (req: Request, res: Response): Promise<void> => {
   try {
     upload.single('file')(req, res, async (err) => {
@@ -78,7 +78,7 @@ export const uploadExcel = async (req: Request, res: Response): Promise<void> =>
       if (!req.file) {
         res.status(400).json({
           success: false,
-          message: '파일이 업로드되지 않았습니다.'
+          message: '?�일???�로?�되지 ?�았?�니??'
         })
         return
       }
@@ -86,8 +86,8 @@ export const uploadExcel = async (req: Request, res: Response): Promise<void> =>
       const { description, tags, chunkSize = 1000, validateData = true }: UploadRequest = req.body
       const userId = req.user!.id
 
-      // 파일 정보 저장
-      const [result] = await pool.execute(
+      // ?�일 ?�보 ?�??
+      const [result] = await pool.query(
         `INSERT INTO excel_files (filename, original_name, file_path, file_size, file_type, uploaded_by, description, tags, is_processed) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
         [
@@ -104,7 +104,7 @@ export const uploadExcel = async (req: Request, res: Response): Promise<void> =>
 
       const fileId = result.insertId
 
-      // 비동기로 파일 처리 시작
+      // 비동기로 ?�일 처리 ?�작
       processExcelFile(req.file.path, fileId, userId, chunkSize, validateData)
         .then(job => {
           console.log(`File processing completed: ${fileId}`)
@@ -115,7 +115,7 @@ export const uploadExcel = async (req: Request, res: Response): Promise<void> =>
 
       res.status(201).json({
         success: true,
-        message: '파일이 업로드되었습니다. 처리 중입니다.',
+        message: '?�일???�로?�되?�습?�다. 처리 중입?�다.',
         data: {
           fileId,
           filename: req.file.originalname,
@@ -128,17 +128,17 @@ export const uploadExcel = async (req: Request, res: Response): Promise<void> =>
     console.error('Upload error:', error)
     res.status(500).json({
       success: false,
-      message: '파일 업로드 중 오류가 발생했습니다.'
+      message: '?�일 ?�로??�??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 업로드 진행률 조회
+// ?�로??진행�?조회
 export const getUploadProgress = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
     
-    const [files] = await pool.execute(
+    const [files] = await pool.query(
       'SELECT id, filename, original_name, is_processed, total_rows, total_columns, created_at FROM excel_files WHERE id = ?',
       [fileId]
     ) as any[]
@@ -146,15 +146,15 @@ export const getUploadProgress = async (req: Request, res: Response): Promise<vo
     if (files.length === 0) {
       res.status(404).json({
         success: false,
-        message: '파일을 찾을 수 없습니다.'
+        message: '?�일??찾을 ???�습?�다.'
       })
       return
     }
 
     const file = files[0]
     
-    // 처리된 행 수 조회
-    const [dataCount] = await pool.execute(
+    // 처리??????조회
+    const [dataCount] = await pool.query(
       'SELECT COUNT(*) as count FROM excel_data WHERE file_id = ?',
       [fileId]
     ) as any[]
@@ -179,17 +179,17 @@ export const getUploadProgress = async (req: Request, res: Response): Promise<vo
     console.error('Get progress error:', error)
     res.status(500).json({
       success: false,
-      message: '진행률 조회 중 오류가 발생했습니다.'
+      message: '진행�?조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 페이지네이션된 데이터 조회 API
+// ?�이지?�이?�된 ?�이??조회 API
 export const getExcelData = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
     const page = parseInt(req.query.page as string) || 1
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100) // 최대 100개
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100) // 최�? 100�?
     const search = req.query.search as string
     const sortBy = req.query.sortBy as string
     const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'asc'
@@ -197,10 +197,10 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
 
     const offset = (page - 1) * limit
 
-    // 캐시 키 생성
+    // 캐시 ???�성
     const cacheKey = generateDataCacheKey(fileId, page, limit, sortBy, sortOrder)
     
-    // 캐시 확인
+    // 캐시 ?�인
     const cached = await getCache(cacheKey)
     if (cached) {
       res.status(200).json({
@@ -211,7 +211,7 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
       return
     }
 
-    // 검색 조건 생성
+    // 검??조건 ?�성
     const { query, params } = buildSearchQuery(
       'SELECT * FROM excel_data WHERE file_id = ?',
       search,
@@ -220,22 +220,22 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
       sortOrder
     )
 
-    // file_id 파라미터 추가
+    // file_id ?�라미터 추�?
     const allParams = [fileId, ...params]
 
-    // 전체 개수 조회
+    // ?�체 개수 조회
     const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as count')
-    const [countResult] = await pool.execute(countQuery, allParams) as any[]
+    const [countResult] = await pool.query(countQuery, allParams) as any[]
     const total = countResult[0].count
 
-    // 데이터 조회
+    // ?�이??조회
     const dataQuery = query + ' LIMIT ? OFFSET ?'
-    const [data] = await pool.execute(dataQuery, [...allParams, limit, offset]) as any[]
+    const [data] = await pool.query(dataQuery, [...allParams, limit, offset]) as any[]
 
-    // 컬럼 정보 조회
+    // 컬럼 ?�보 조회
     const columnsInfo = await getColumns(fileId)
 
-    // 응답 데이터 구성
+    // ?�답 ?�이??구성
     const response: ExcelDataResponse = {
       data: data.map(row => ({
         id: row.id,
@@ -263,10 +263,10 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
       }
     }
 
-    // 응답 최적화
+    // ?�답 최적??
     const optimizedResponse = optimizePaginationResponse(response, false)
 
-    // 캐시 저장
+    // 캐시 ?�??
     await setCache(cacheKey, optimizedResponse, 'data')
 
     res.status(200).json({
@@ -277,12 +277,12 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
     console.error('Get data error:', error)
     res.status(500).json({
       success: false,
-      message: '데이터 조회 중 오류가 발생했습니다.'
+      message: '?�이??조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 고급 검색 API
+// 고급 검??API
 export const searchExcelData = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
@@ -299,7 +299,7 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
 
     const offset = (page - 1) * limit
 
-    // 캐시 키 생성
+    // 캐시 ???�성
     const cacheKey = generateSearchCacheKey(fileId, searchTerm || '', {
       columnFilters,
       rangeFilters,
@@ -308,7 +308,7 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
       sortOrder
     }, page, limit)
 
-    // 캐시 확인 (임시로 비활성화)
+    // 캐시 ?�인 (?�시�?비활?�화)
     // const cached = await getCache(cacheKey)
     // if (cached) {
     //   res.status(200).json({
@@ -321,7 +321,7 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
 
     const startTime = Date.now()
 
-    // 검색 조건 구성
+    // 검??조건 구성
     const filters = { ...columnFilters, ...booleanFilters }
     if (rangeFilters) {
       Object.entries(rangeFilters).forEach(([key, range]) => {
@@ -329,7 +329,7 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
       })
     }
 
-    // 검색 쿼리 생성
+    // 검??쿼리 ?�성
     const { query, params } = buildSearchQuery(
       'SELECT * FROM excel_data WHERE file_id = ?',
       searchTerm,
@@ -338,56 +338,56 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
       sortOrder
     )
 
-    // file_id 파라미터 추가
+    // file_id ?�라미터 추�?
     const allParams = [fileId, ...params]
 
-    console.log('=== 검색 디버깅 ===');
+    console.log('=== 검???�버�?===');
     console.log('FileId:', fileId);
     console.log('SearchTerm:', searchTerm);
     console.log('Filters:', filters);
     console.log('Query:', query);
     console.log('Params:', allParams);
 
-    // 실제 데이터베이스의 팀 값들 확인
-    const [teamValues] = await pool.execute(
-      'SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.설치팀")) as team FROM excel_data WHERE file_id = ? ORDER BY team',
+    // ?�제 ?�이?�베?�스???� 값들 ?�인
+    const [teamValues] = await pool.query(
+      'SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.?�치?�")) as team FROM excel_data WHERE file_id = ? ORDER BY team',
       [fileId]
     ) as any[];
-    console.log('데이터베이스의 실제 팀 값들:', teamValues.map((row: any) => row.team));
+    console.log('?�이?�베?�스???�제 ?� 값들:', teamValues.map((row: any) => row.team));
 
-    // 선택된 팀에 대한 실제 데이터 개수 확인
-    if (filters['설치팀']) {
-      const [selectedTeamCount] = await pool.execute(
-        'SELECT COUNT(*) as count FROM excel_data WHERE file_id = ? AND JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.설치팀")) = ?',
-        [fileId, filters['설치팀']]
+    // ?�택???�???�???�제 ?�이??개수 ?�인
+    if (filters['?�치?�']) {
+      const [selectedTeamCount] = await pool.query(
+        'SELECT COUNT(*) as count FROM excel_data WHERE file_id = ? AND JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.?�치?�")) = ?',
+        [fileId, filters['?�치?�']]
       ) as any[];
-      console.log(`선택된 팀 "${filters['설치팀']}"의 실제 데이터 개수:`, selectedTeamCount[0].count);
+      console.log(`?�택???� "${filters['?�치?�']}"???�제 ?�이??개수:`, selectedTeamCount[0].count);
       
-      // 선택된 팀의 샘플 데이터 확인
-      const [sampleData] = await pool.execute(
-        'SELECT id, row_index, JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.설치팀")) as team FROM excel_data WHERE file_id = ? AND JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.설치팀")) = ? LIMIT 3',
-        [fileId, filters['설치팀']]
+      // ?�택???�???�플 ?�이???�인
+      const [sampleData] = await pool.query(
+        'SELECT id, row_index, JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.?�치?�")) as team FROM excel_data WHERE file_id = ? AND JSON_UNQUOTE(JSON_EXTRACT(row_data, "$.?�치?�")) = ? LIMIT 3',
+        [fileId, filters['?�치?�']]
       ) as any[];
-      console.log(`선택된 팀 "${filters['설치팀']}"의 샘플 데이터:`, sampleData);
+      console.log(`?�택???� "${filters['?�치?�']}"???�플 ?�이??`, sampleData);
     }
 
-    // 전체 개수 조회
+    // ?�체 개수 조회
     const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as count')
     console.log('Count Query:', countQuery);
-    const [countResult] = await pool.execute(countQuery, allParams) as any[]
+    const [countResult] = await pool.query(countQuery, allParams) as any[]
     const total = countResult[0].count
     console.log('Total count:', total);
 
-    // 데이터 조회
+    // ?�이??조회
     const dataQuery = query + ' LIMIT ? OFFSET ?'
-    const [data] = await pool.execute(dataQuery, [...allParams, limit, offset]) as any[]
+    const [data] = await pool.query(dataQuery, [...allParams, limit, offset]) as any[]
 
     const processingTime = Date.now() - startTime
 
-    // 컬럼 정보 조회
+    // 컬럼 ?�보 조회
     const columnsInfo = await getColumns(fileId)
 
-    // 응답 데이터 구성
+    // ?�답 ?�이??구성
     const response: SearchResponse = {
       data: data.map(row => ({
         id: row.id,
@@ -415,13 +415,13 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
       }
     }
 
-    // 응답 최적화
+    // ?�답 최적??
     const optimizedResponse = optimizePaginationResponse(response, false)
 
-    // 캐시 저장 (임시로 비활성화)
+    // 캐시 ?�??(?�시�?비활?�화)
     // await setCache(cacheKey, optimizedResponse, 'search')
 
-    // 캐시 방지 헤더 추가
+    // 캐시 방�? ?�더 추�?
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
@@ -436,20 +436,20 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
     console.error('Search error:', error)
     res.status(500).json({
       success: false,
-      message: '검색 중 오류가 발생했습니다.'
+      message: '검??�??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 컬럼별 요약 정보 API
+// 컬럼�??�약 ?�보 API
 export const getExcelSummary = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
 
-    // 캐시 키 생성
+    // 캐시 ???�성
     const cacheKey = generateSummaryCacheKey(fileId)
 
-    // 캐시 확인
+    // 캐시 ?�인
     const cached = await getCache(cacheKey)
     if (cached) {
       res.status(200).json({
@@ -460,14 +460,14 @@ export const getExcelSummary = async (req: Request, res: Response): Promise<void
       return
     }
 
-    // 파일 정보 조회
+    // ?�일 ?�보 조회
     const fileInfo = await getFileInfo(fileId)
     const columns = await getColumns(fileId)
 
-    // 컬럼별 요약 정보 생성
+    // 컬럼�??�약 ?�보 ?�성
     const columnSummaries = await Promise.all(
       columns.map(async (column) => {
-        const [result] = await pool.execute(
+        const [result] = await pool.query(
           `SELECT 
             COUNT(*) as total_values,
             COUNT(DISTINCT JSON_EXTRACT(row_data, '$.${column.column_name}')) as unique_values,
@@ -481,8 +481,8 @@ export const getExcelSummary = async (req: Request, res: Response): Promise<void
 
         const stats = result[0]
 
-        // 샘플 값들 조회
-        const [samples] = await pool.execute(
+        // ?�플 값들 조회
+        const [samples] = await pool.query(
           `SELECT DISTINCT JSON_EXTRACT(row_data, '$.${column.column_name}') as value
            FROM excel_data 
            WHERE file_id = ? AND JSON_EXTRACT(row_data, '$.${column.column_name}') IS NOT NULL
@@ -490,8 +490,8 @@ export const getExcelSummary = async (req: Request, res: Response): Promise<void
           [fileId]
         ) as any[]
 
-        // 값별 개수 조회 (상위 10개)
-        const [valueCounts] = await pool.execute(
+        // 값별 개수 조회 (?�위 10�?
+        const [valueCounts] = await pool.query(
           `SELECT 
             JSON_EXTRACT(row_data, '$.${column.column_name}') as value,
             COUNT(*) as count
@@ -529,7 +529,7 @@ export const getExcelSummary = async (req: Request, res: Response): Promise<void
       last_updated: new Date()
     }
 
-    // 캐시 저장
+    // 캐시 ?�??
     await setCache(cacheKey, summary, 'summary')
 
     res.status(200).json({
@@ -540,12 +540,12 @@ export const getExcelSummary = async (req: Request, res: Response): Promise<void
     console.error('Get summary error:', error)
     res.status(500).json({
       success: false,
-      message: '요약 정보 조회 중 오류가 발생했습니다.'
+      message: '?�약 ?�보 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 파일 목록 조회
+// ?�일 목록 조회
 export const getExcelFiles = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1
@@ -563,16 +563,16 @@ export const getExcelFiles = async (req: Request, res: Response): Promise<void> 
       params.push(`%${search}%`, `%${search}%`)
     }
 
-    // 전체 개수 조회
-    const [countResult] = await pool.execute(
+    // ?�체 개수 조회
+    const [countResult] = await pool.query(
       `SELECT COUNT(*) as total FROM excel_files ${whereClause}`,
       params
     ) as any[]
 
     const total = countResult[0].total
 
-    // 파일 목록 조회
-    const [files] = await pool.execute(
+    // ?�일 목록 조회
+    const [files] = await pool.query(
       `SELECT 
         id, filename, original_name, file_size, file_type, total_rows, total_columns,
         description, tags, is_processed, uploaded_by, created_at, updated_at
@@ -602,19 +602,19 @@ export const getExcelFiles = async (req: Request, res: Response): Promise<void> 
     console.error('Get files error:', error)
     res.status(500).json({
       success: false,
-      message: '파일 목록 조회 중 오류가 발생했습니다.'
+      message: '?�일 목록 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 파일 삭제
+// ?�일 ??��
 export const deleteExcelFile = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
     const userId = req.user!.id
 
-    // 파일 정보 조회
-    const [files] = await pool.execute(
+    // ?�일 ?�보 조회
+    const [files] = await pool.query(
       'SELECT * FROM excel_files WHERE id = ? AND uploaded_by = ?',
       [fileId, userId]
     ) as any[]
@@ -622,45 +622,45 @@ export const deleteExcelFile = async (req: Request, res: Response): Promise<void
     if (files.length === 0) {
       res.status(404).json({
         success: false,
-        message: '파일을 찾을 수 없습니다.'
+        message: '?�일??찾을 ???�습?�다.'
       })
       return
     }
 
     const file = files[0]
 
-    // 파일 시스템에서 삭제
+    // ?�일 ?�스?�에????��
     if (fs.existsSync(file.file_path)) {
       fs.unlinkSync(file.file_path)
     }
 
-    // 데이터베이스에서 삭제 (CASCADE로 관련 데이터도 삭제됨)
-    await pool.execute('DELETE FROM excel_files WHERE id = ?', [fileId])
+    // ?�이?�베?�스?�서 ??�� (CASCADE�?관???�이?�도 ??��??
+    await pool.query('DELETE FROM excel_files WHERE id = ?', [fileId])
 
-    // 캐시 정리
+    // 캐시 ?�리
     await clearFileCache(fileId)
 
     res.status(200).json({
       success: true,
-      message: '파일이 삭제되었습니다.'
+      message: '?�일????��?�었?�니??'
     })
   } catch (error) {
     console.error('Delete file error:', error)
     res.status(500).json({
       success: false,
-      message: '파일 삭제 중 오류가 발생했습니다.'
+      message: '?�일 ??�� �??�류가 발생?�습?�다.'
     })
   }
 } 
 
-// 팀 목록 조회 API
+// ?� 목록 조회 API
 export const getTeamList = async (req: Request, res: Response): Promise<void> => {
   try {
     const fileId = parseInt(req.params.fileId)
-    const columnIndex = parseInt(req.query.columnIndex as string) || 8 // 기본값: I열 (9번째 컬럼)
+    const columnIndex = parseInt(req.query.columnIndex as string) || 8 // 기본�? I??(9번째 컬럼)
 
-    // 컬럼 정보 조회
-    const [columns] = await pool.execute(
+    // 컬럼 ?�보 조회
+    const [columns] = await pool.query(
       'SELECT * FROM excel_columns WHERE file_id = ? AND column_index = ?',
       [fileId, columnIndex]
     ) as any[]
@@ -668,15 +668,15 @@ export const getTeamList = async (req: Request, res: Response): Promise<void> =>
     if (columns.length === 0) {
       res.status(404).json({
         success: false,
-        message: '해당 컬럼을 찾을 수 없습니다.'
+        message: '?�당 컬럼??찾을 ???�습?�다.'
       })
       return
     }
 
     const columnName = columns[0].column_name
 
-    // 전체 데이터에서 팀 목록 추출
-    const [teams] = await pool.execute(
+    // ?�체 ?�이?�에???� 목록 추출
+    const [teams] = await pool.query(
       `SELECT DISTINCT JSON_EXTRACT(row_data, '$.${columnName}') as team_name
        FROM excel_data 
        WHERE file_id = ? 
@@ -700,7 +700,7 @@ export const getTeamList = async (req: Request, res: Response): Promise<void> =>
     console.error('Get team list error:', error)
     res.status(500).json({
       success: false,
-      message: '팀 목록 조회 중 오류가 발생했습니다.'
+      message: '?� 목록 조회 �??�류가 발생?�습?�다.'
     })
   }
 } 

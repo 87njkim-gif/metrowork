@@ -7,7 +7,7 @@ import nodemailer from 'nodemailer'
 
 const pool = getPool()
 
-// 이메일 전송 설정 (환경변수에서 가져오기)
+// ?�메???�송 ?�정 (?�경변?�에??가?�오�?
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -18,12 +18,12 @@ const transporter = nodemailer.createTransport({
   }
 })
 
-// 비밀번호 재설정 토큰 생성
+// 비�?번호 ?�설???�큰 ?�성
 const generateResetToken = (): string => {
   return crypto.randomBytes(32).toString('hex')
 }
 
-// 비밀번호 재설정 이메일 전송
+// 비�?번호 ?�설???�메???�송
 const sendPasswordResetEmail = async (email: string, resetToken: string, userName: string): Promise<boolean> => {
   try {
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`
@@ -31,26 +31,26 @@ const sendPasswordResetEmail = async (email: string, resetToken: string, userNam
     const mailOptions = {
       from: process.env.SMTP_USER,
       to: email,
-      subject: '[MetroWork] 비밀번호 재설정 안내',
+      subject: '[MetroWork] 비�?번호 ?�설???�내',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">MetroWork 비밀번호 재설정</h2>
-          <p>안녕하세요, <strong>${userName}</strong>님.</p>
-          <p>비밀번호 재설정 요청이 접수되었습니다.</p>
-          <p>아래 링크를 클릭하여 새로운 비밀번호를 설정해주세요:</p>
+          <h2 style="color: #333;">MetroWork 비�?번호 ?�설??/h2>
+          <p>?�녕?�세?? <strong>${userName}</strong>??</p>
+          <p>비�?번호 ?�설???�청???�수?�었?�니??</p>
+          <p>?�래 링크�??�릭?�여 ?�로??비�?번호�??�정?�주?�요:</p>
           <div style="text-align: center; margin: 30px 0;">
             <a href="${resetUrl}" 
                style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              비밀번호 재설정하기
+              비�?번호 ?�설?�하�?
             </a>
           </div>
           <p style="color: #666; font-size: 14px;">
-            이 링크는 1시간 후에 만료됩니다.<br>
-            본인이 요청하지 않았다면 이 이메일을 무시하세요.
+            ??링크??1?�간 ?�에 만료?�니??<br>
+            본인???�청?��? ?�았?�면 ???�메?�을 무시?�세??
           </p>
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="color: #999; font-size: 12px;">
-            이 이메일은 MetroWork 시스템에서 자동으로 발송되었습니다.
+            ???�메?��? MetroWork ?�스?�에???�동?�로 발송?�었?�니??
           </p>
         </div>
       `
@@ -64,14 +64,14 @@ const sendPasswordResetEmail = async (email: string, resetToken: string, userNam
   }
 }
 
-// 비밀번호 재설정 요청
+// 비�?번호 ?�설???�청
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        message: '입력 데이터가 올바르지 않습니다.',
+        message: '?�력 ?�이?��? ?�바르�? ?�습?�다.',
         errors: errors.array()
       })
       return
@@ -79,8 +79,8 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 
     const { name, birthDate, email } = req.body
 
-    // 이름, 생년월일, 이메일로 사용자 조회
-    const [users] = await pool.execute(
+    // ?�름, ?�년?�일, ?�메?�로 ?�용??조회
+    const [users] = await pool.query(
       'SELECT id, name, email, status FROM users WHERE name = ? AND birth_date = ? AND email = ?',
       [name, birthDate, email]
     ) as any[]
@@ -88,9 +88,9 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     if (users.length === 0) {
       res.status(404).json({
         success: false,
-        message: '일치하는 사용자 정보를 찾을 수 없습니다.',
+        message: '?�치?�는 ?�용???�보�?찾을 ???�습?�다.',
         data: {
-          suggestion: '이름, 생년월일, 이메일을 다시 확인해주세요.'
+          suggestion: '?�름, ?�년?�일, ?�메?�을 ?�시 ?�인?�주?�요.'
         }
       })
       return
@@ -98,59 +98,59 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 
     const user = users[0]
 
-    // 계정 상태 확인
+    // 계정 ?�태 ?�인
     if (user.status !== 'approved') {
       res.status(403).json({
         success: false,
-        message: '승인되지 않은 계정입니다.',
+        message: '?�인?��? ?��? 계정?�니??',
         data: {
-          suggestion: '관리자에게 계정 승인을 요청해주세요.'
+          suggestion: '관리자?�게 계정 ?�인???�청?�주?�요.'
         }
       })
       return
     }
 
-    // 기존 재설정 토큰이 있다면 삭제
-    await pool.execute(
+    // 기존 ?�설???�큰???�다�???��
+    await pool.query(
       'DELETE FROM password_reset_tokens WHERE user_id = ?',
       [user.id]
     )
 
-    // 새로운 재설정 토큰 생성
+    // ?�로???�설???�큰 ?�성
     const resetToken = generateResetToken()
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1시간 후 만료
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1?�간 ??만료
 
-    // 재설정 토큰 저장
-    await pool.execute(
+    // ?�설???�큰 ?�??
+    await pool.query(
       'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
       [user.id, resetToken, expiresAt]
     )
 
-    // 이메일 전송
+    // ?�메???�송
     const emailSent = await sendPasswordResetEmail(email, resetToken, user.name)
 
     if (emailSent) {
       res.status(200).json({
         success: true,
-        message: '비밀번호 재설정 이메일이 발송되었습니다.',
+        message: '비�?번호 ?�설???�메?�이 발송?�었?�니??',
         data: {
           email: email,
           expiresAt: expiresAt,
-          suggestion: '이메일을 확인하여 비밀번호를 재설정해주세요.'
+          suggestion: '?�메?�을 ?�인?�여 비�?번호�??�설?�해주세??'
         }
       })
     } else {
-      // 이메일 전송 실패 시 토큰 삭제
-      await pool.execute(
+      // ?�메???�송 ?�패 ???�큰 ??��
+      await pool.query(
         'DELETE FROM password_reset_tokens WHERE user_id = ?',
         [user.id]
       )
 
       res.status(500).json({
         success: false,
-        message: '이메일 전송에 실패했습니다.',
+        message: '?�메???�송???�패?�습?�다.',
         data: {
-          suggestion: '잠시 후 다시 시도해주세요.'
+          suggestion: '?�시 ???�시 ?�도?�주?�요.'
         }
       })
     }
@@ -158,19 +158,19 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     console.error('Password reset error:', error)
     res.status(500).json({
       success: false,
-      message: '비밀번호 재설정 중 오류가 발생했습니다.'
+      message: '비�?번호 ?�설??�??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 비밀번호 재설정 토큰 검증 및 새 비밀번호 설정
+// 비�?번호 ?�설???�큰 검�?�???비�?번호 ?�정
 export const confirmPasswordReset = async (req: Request, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        message: '입력 데이터가 올바르지 않습니다.',
+        message: '?�력 ?�이?��? ?�바르�? ?�습?�다.',
         errors: errors.array()
       })
       return
@@ -178,8 +178,8 @@ export const confirmPasswordReset = async (req: Request, res: Response): Promise
 
     const { token, newPassword } = req.body
 
-    // 토큰으로 사용자 조회
-    const [tokens] = await pool.execute(
+    // ?�큰?�로 ?�용??조회
+    const [tokens] = await pool.query(
       `SELECT prt.user_id, prt.expires_at, u.name, u.email 
        FROM password_reset_tokens prt 
        JOIN users u ON prt.user_id = u.id 
@@ -190,9 +190,9 @@ export const confirmPasswordReset = async (req: Request, res: Response): Promise
     if (tokens.length === 0) {
       res.status(404).json({
         success: false,
-        message: '유효하지 않은 재설정 토큰입니다.',
+        message: '?�효?��? ?��? ?�설???�큰?�니??',
         data: {
-          suggestion: '비밀번호 재설정을 다시 요청해주세요.'
+          suggestion: '비�?번호 ?�설?�을 ?�시 ?�청?�주?�요.'
         }
       })
       return
@@ -200,48 +200,48 @@ export const confirmPasswordReset = async (req: Request, res: Response): Promise
 
     const resetToken = tokens[0]
 
-    // 토큰 만료 확인
+    // ?�큰 만료 ?�인
     if (new Date() > new Date(resetToken.expires_at)) {
-      // 만료된 토큰 삭제
-      await pool.execute(
+      // 만료???�큰 ??��
+      await pool.query(
         'DELETE FROM password_reset_tokens WHERE token = ?',
         [token]
       )
 
       res.status(400).json({
         success: false,
-        message: '재설정 토큰이 만료되었습니다.',
+        message: '?�설???�큰??만료?�었?�니??',
         data: {
-          suggestion: '비밀번호 재설정을 다시 요청해주세요.'
+          suggestion: '비�?번호 ?�설?�을 ?�시 ?�청?�주?�요.'
         }
       })
       return
     }
 
-    // 새 비밀번호 해시화
+    // ??비�?번호 ?�시??
     const saltRounds = 12
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds)
 
-    // 비밀번호 업데이트
-    await pool.execute(
+    // 비�?번호 ?�데?�트
+    await pool.query(
       'UPDATE users SET password = ? WHERE id = ?',
       [hashedPassword, resetToken.user_id]
     )
 
-    // 사용된 토큰 삭제
-    await pool.execute(
+    // ?�용???�큰 ??��
+    await pool.query(
       'DELETE FROM password_reset_tokens WHERE token = ?',
       [token]
     )
 
-    // 성공 이메일 전송
+    // ?�공 ?�메???�송
     const successEmailSent = await sendPasswordChangeNotification(resetToken.email, resetToken.name)
 
     res.status(200).json({
       success: true,
-      message: '비밀번호가 성공적으로 변경되었습니다.',
+      message: '비�?번호가 ?�공?�으�?변경되?�습?�다.',
       data: {
-        suggestion: '새 비밀번호로 로그인해주세요.',
+        suggestion: '??비�?번호�?로그?�해주세??',
         emailSent: successEmailSent
       }
     })
@@ -249,35 +249,35 @@ export const confirmPasswordReset = async (req: Request, res: Response): Promise
     console.error('Password confirmation error:', error)
     res.status(500).json({
       success: false,
-      message: '비밀번호 변경 중 오류가 발생했습니다.'
+      message: '비�?번호 변�?�??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 비밀번호 변경 완료 알림 이메일
+// 비�?번호 변�??�료 ?�림 ?�메??
 const sendPasswordChangeNotification = async (email: string, userName: string): Promise<boolean> => {
   try {
     const mailOptions = {
       from: process.env.SMTP_USER,
       to: email,
-      subject: '[MetroWork] 비밀번호 변경 완료',
+      subject: '[MetroWork] 비�?번호 변�??�료',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">비밀번호 변경 완료</h2>
-          <p>안녕하세요, <strong>${userName}</strong>님.</p>
-          <p>비밀번호가 성공적으로 변경되었습니다.</p>
+          <h2 style="color: #333;">비�?번호 변�??�료</h2>
+          <p>?�녕?�세?? <strong>${userName}</strong>??</p>
+          <p>비�?번호가 ?�공?�으�?변경되?�습?�다.</p>
           <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p style="margin: 0; color: #666;">
-              변경 시간: ${new Date().toLocaleString('ko-KR')}<br>
-              변경된 비밀번호는 안전하게 암호화되어 저장되었습니다.
+              변�??�간: ${new Date().toLocaleString('ko-KR')}<br>
+              변경된 비�?번호???�전?�게 ?�호?�되???�?�되?�습?�다.
             </p>
           </div>
           <p style="color: #666; font-size: 14px;">
-            본인이 변경하지 않았다면 즉시 관리자에게 연락해주세요.
+            본인??변경하지 ?�았?�면 즉시 관리자?�게 ?�락?�주?�요.
           </p>
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="color: #999; font-size: 12px;">
-            이 이메일은 MetroWork 시스템에서 자동으로 발송되었습니다.
+            ???�메?��? MetroWork ?�스?�에???�동?�로 발송?�었?�니??
           </p>
         </div>
       `
@@ -291,33 +291,33 @@ const sendPasswordChangeNotification = async (email: string, userName: string): 
   }
 }
 
-// 유효성 검사 규칙
+// ?�효??검??규칙
 export const resetPasswordValidation = [
   body('name')
     .trim()
     .isLength({ min: 2, max: 50 })
-    .withMessage('이름은 2-50자 사이여야 합니다.')
-    .matches(/^[가-힣a-zA-Z\s]+$/)
-    .withMessage('이름은 한글, 영문, 공백만 입력 가능합니다.'),
+    .withMessage('?�름?� 2-50???�이?�야 ?�니??')
+    .matches(/^[가-?�a-zA-Z\s]+$/)
+    .withMessage('?�름?� ?��?, ?�문, 공백�??�력 가?�합?�다.'),
   
   body('birthDate')
     .matches(/^\d{4}-\d{2}-\d{2}$/)
-    .withMessage('생년월일은 YYYY-MM-DD 형식이어야 합니다.')
+    .withMessage('?�년?�일?� YYYY-MM-DD ?�식?�어???�니??')
     .custom((value) => {
       const date = new Date(value)
       const today = new Date()
       const minDate = new Date('1900-01-01')
       
       if (isNaN(date.getTime())) {
-        throw new Error('유효하지 않은 날짜입니다.')
+        throw new Error('?�효?��? ?��? ?�짜?�니??')
       }
       
       if (date > today) {
-        throw new Error('생년월일은 오늘 날짜보다 이전이어야 합니다.')
+        throw new Error('?�년?�일?� ?�늘 ?�짜보다 ?�전?�어???�니??')
       }
       
       if (date < minDate) {
-        throw new Error('생년월일은 1900년 이후여야 합니다.')
+        throw new Error('?�년?�일?� 1900???�후?�야 ?�니??')
       }
       
       return true
@@ -325,20 +325,20 @@ export const resetPasswordValidation = [
   
   body('email')
     .isEmail()
-    .withMessage('유효한 이메일 주소를 입력해주세요.')
+    .withMessage('?�효???�메??주소�??�력?�주?�요.')
     .normalizeEmail()
 ]
 
 export const confirmPasswordResetValidation = [
   body('token')
     .isLength({ min: 64, max: 64 })
-    .withMessage('유효하지 않은 토큰입니다.')
+    .withMessage('?�효?��? ?��? ?�큰?�니??')
     .matches(/^[a-f0-9]+$/)
-    .withMessage('토큰 형식이 올바르지 않습니다.'),
+    .withMessage('?�큰 ?�식???�바르�? ?�습?�다.'),
   
   body('newPassword')
     .isLength({ min: 8, max: 100 })
-    .withMessage('비밀번호는 8-100자 사이여야 합니다.')
+    .withMessage('비�?번호??8-100???�이?�야 ?�니??')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('비밀번호는 영문 대소문자, 숫자, 특수문자를 포함해야 합니다.')
+    .withMessage('비�?번호???�문 ?�?�문?? ?�자, ?�수문자�??�함?�야 ?�니??')
 ] 

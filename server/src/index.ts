@@ -23,10 +23,10 @@ import duplicateRoutes from './routes/duplicate'
 import passwordResetRoutes from './routes/passwordReset'
 import smsAuthRoutes from './routes/smsAuth'
 import workCheckRoutes from './routes/workCheck'
-// import checklistRoutes from './routes/checklist' // 삭제
+// import checklistRoutes from './routes/checklist' // ??��
 
 // Middleware
-// import { notFound } from './middleware/notFound' // 삭제
+// import { notFound } from './middleware/notFound' // ??��
 
 // Database
 import { connectDB } from './config/database'
@@ -55,7 +55,7 @@ app.use(helmet({
   },
 }))
 
-// CORS 설정
+// CORS ?�정
 app.use(cors({
   origin: [
     process.env.CLIENT_URL || 'http://localhost:3000',
@@ -70,8 +70,8 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10000, // 개발 중에는 넉넉하게
-  message: '너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해주세요.',
+  max: 10000, // 개발 중에???�넉?�게
+  message: '?�무 많�? ?�청??발생?�습?�다. ?�시 ???�시 ?�도?�주?�요.',
 })
 app.use('/api/', limiter)
 
@@ -103,7 +103,7 @@ app.use('/api/auth', duplicateRoutes)
 app.use('/api/auth', passwordResetRoutes)
 app.use('/api/auth', smsAuthRoutes)
 app.use('/api/work-check', workCheckRoutes)
-// app.use('/api/checklist', checklistRoutes) // 삭제
+// app.use('/api/checklist', checklistRoutes) // ??��
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -120,16 +120,16 @@ const startServer = async () => {
   try {
     // Connect to database
     await connectDB()
-    console.log('✅ Database connected successfully')
+    console.log('??Database connected successfully')
     
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`)
-      console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`)
-      console.log(`🔗 API URL: http://localhost:${PORT}/api`)
-      console.log(`🔌 Socket.IO enabled for real-time features`)
+      console.log(`?? Server running on port ${PORT}`)
+      console.log(`?�� Environment: ${process.env.NODE_ENV || 'development'}`)
+      console.log(`?�� API URL: http://localhost:${PORT}/api`)
+      console.log(`?�� Socket.IO enabled for real-time features`)
     })
   } catch (error) {
-    console.error('❌ Failed to start server:', error)
+    console.error('??Failed to start server:', error)
     process.exit(1)
   }
 }

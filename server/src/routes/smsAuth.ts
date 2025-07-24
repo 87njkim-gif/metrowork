@@ -12,16 +12,16 @@ import {
 
 const router = Router()
 
-// 본인 확인
+// 본인 ?�인
 router.post('/verify-user', verifyUserValidation, verifyUser)
 
-// SMS 인증번호 발송
+// SMS ?�증번호 발송
 router.post('/send-sms', sendSMSValidation, sendSMSVerification)
 
-// 인증번호 확인
+// ?�증번호 ?�인
 router.post('/verify-sms', verifySMSValidation, verifySMS)
 
-// 비밀번호 재설정 (SMS 인증 방식)
+// 비�?번호 ?�설??(SMS ?�증 방식)
 router.post('/reset-password', resetPasswordWithSMSValidation, resetPasswordWithSMS)
 
 export default router 

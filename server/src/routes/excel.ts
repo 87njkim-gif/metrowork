@@ -18,31 +18,31 @@ import { cacheMiddleware } from '../utils/cache'
 
 const router = Router()
 
-// 모든 라우트에 인증 적용
+// 모든 ?�우?�에 ?�증 ?�용
 router.use(extractToken, authenticate, requireApproved)
 
-// 파일 업로드
+// ?�일 ?�로??
 router.post('/upload', uploadExcel)
 
-// 업로드 진행률 조회
+// ?�로??진행�?조회
 router.get('/upload/:fileId/progress', getUploadProgress)
 
-// 파일 목록 조회
+// ?�일 목록 조회
 router.get('/files', getExcelFiles)
 
-// 파일 삭제
+// ?�일 ??��
 router.delete('/files/:fileId', deleteExcelFile)
 
-// 팀 목록 조회
+// ?� 목록 조회
 router.get('/teams/:fileId', getTeamList)
 
-// 데이터 조회 (캐시 적용)
+// ?�이??조회 (캐시 ?�용)
 router.get('/data/:fileId', cacheMiddleware('data'), getExcelData)
 
-// 고급 검색 (캐시 적용)
+// 고급 검??(캐시 ?�용)
 router.post('/search/:fileId', cacheMiddleware('search'), searchExcelData)
 
-// 요약 정보 조회 (캐시 적용)
+// ?�약 ?�보 조회 (캐시 ?�용)
 router.get('/summary/:fileId', cacheMiddleware('summary'), getExcelSummary)
 
 export default router 

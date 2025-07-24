@@ -21,34 +21,34 @@ import {
 
 const router = Router()
 
-// 모든 라우트에 인증 적용
+// 모든 ?�우?�에 ?�증 ?�용
 router.use(extractToken, authenticate, requireApproved)
 
-// 엑셀 데이터 행 체크/해제
+// ?��? ?�이????체크/?�제
 router.put('/excel/:rowId/check', checkWorkValidation, checkWorkItem)
 
-// 완료된 업무 목록 조회
+// ?�료???�무 목록 조회
 router.get('/completed', getCompletedWorkList)
 
-// 오늘 날짜 설정
+// ?�늘 ?�짜 ?�정
 router.put('/today-date', todayDateValidation, setTodayDate)
 
-// 현재 설정된 오늘 날짜 조회
+// ?�재 ?�정???�늘 ?�짜 조회
 router.get('/today-date', getTodayDate)
 
-// 특정 날짜의 완료된 업무 조회
+// ?�정 ?�짜???�료???�무 조회
 router.get('/completed/:date', getCompletedWorkByDate)
 
-// 업무 통계 조회
+// ?�무 ?�계 조회
 router.get('/stats', getWorkStats)
 
-// 대량 체크/해제
+// ?�??체크/?�제
 router.post('/bulk-check', bulkCheckValidation, bulkCheckWork)
 
-// 사용자별 업무 현황 조회
+// ?�용?�별 ?�무 ?�황 조회
 router.get('/user-status', getUserWorkStatus)
 
-// 업무 활동 히스토리 조회
+// ?�무 ?�동 ?�스?�리 조회
 router.get('/history', getWorkHistory)
 
 export default router 

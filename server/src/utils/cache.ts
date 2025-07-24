@@ -1,9 +1,9 @@
 import { CacheKey, ExcelDataResponse, ExcelSummary, SearchResponse } from '../types/excel'
 
-// 메모리 캐시 (Redis가 없는 경우를 위한 폴백)
+// 메모�?캐시 (Redis가 ?�는 경우�??�한 ?�백)
 class MemoryCache {
   private cache = new Map<string, { data: any; expires: number }>()
-  private readonly DEFAULT_TTL = 5 * 60 * 1000 // 5분
+  private readonly DEFAULT_TTL = 5 * 60 * 1000 // 5�?
 
   set(key: string, data: any, ttl: number = this.DEFAULT_TTL): void {
     const expires = Date.now() + ttl
@@ -30,7 +30,7 @@ class MemoryCache {
     this.cache.clear()
   }
 
-  // 만료된 항목 정리
+  // 만료????�� ?�리
   cleanup(): void {
     const now = Date.now()
     for (const [key, item] of this.cache.entries()) {
@@ -41,7 +41,7 @@ class MemoryCache {
   }
 }
 
-// 캐시 키 생성
+// 캐시 ???�성
 export const generateCacheKey = (type: CacheKey['type'], fileId: number, params: Record<string, any> = {}): string => {
   const sortedParams = Object.keys(params)
     .sort()
@@ -51,29 +51,29 @@ export const generateCacheKey = (type: CacheKey['type'], fileId: number, params:
   return `excel:${type}:${fileId}:${sortedParams}`
 }
 
-// 캐시 TTL 설정
+// 캐시 TTL ?�정
 export const getCacheTTL = (type: CacheKey['type']): number => {
   switch (type) {
     case 'data':
-      return 2 * 60 * 1000 // 2분 (데이터는 자주 변경될 수 있음)
+      return 2 * 60 * 1000 // 2�?(?�이?�는 ?�주 변경될 ???�음)
     case 'summary':
-      return 10 * 60 * 1000 // 10분 (요약 정보는 상대적으로 안정적)
+      return 10 * 60 * 1000 // 10�?(?�약 ?�보???��??�으�??�정??
     case 'search':
-      return 5 * 60 * 1000 // 5분 (검색 결과)
+      return 5 * 60 * 1000 // 5�?(검??결과)
     default:
-      return 5 * 60 * 1000 // 5분
+      return 5 * 60 * 1000 // 5�?
   }
 }
 
-// 메모리 캐시 인스턴스
+// 메모�?캐시 ?�스?�스
 const memoryCache = new MemoryCache()
 
-// 정기적인 캐시 정리 (5분마다)
+// ?�기?�인 캐시 ?�리 (5분마??
 setInterval(() => {
   memoryCache.cleanup()
 }, 5 * 60 * 1000)
 
-// 캐시 설정
+// 캐시 ?�정
 export const setCache = async (key: string, data: any, type: CacheKey['type']): Promise<void> => {
   try {
     const ttl = getCacheTTL(type)
@@ -93,7 +93,7 @@ export const getCache = async (key: string): Promise<any | null> => {
   }
 }
 
-// 캐시 삭제
+// 캐시 ??��
 export const deleteCache = async (key: string): Promise<void> => {
   try {
     memoryCache.delete(key)
@@ -102,7 +102,7 @@ export const deleteCache = async (key: string): Promise<void> => {
   }
 }
 
-// 파일 관련 캐시 전체 삭제
+// ?�일 관??캐시 ?�체 ??��
 export const clearFileCache = async (fileId: number): Promise<void> => {
   try {
     const keys = Array.from(memoryCache.cache.keys())
@@ -116,7 +116,7 @@ export const clearFileCache = async (fileId: number): Promise<void> => {
   }
 }
 
-// 캐시 통계
+// 캐시 ?�계
 export const getCacheStats = (): { size: number; keys: string[] } => {
   return {
     size: memoryCache.cache.size,
@@ -124,7 +124,7 @@ export const getCacheStats = (): { size: number; keys: string[] } => {
   }
 }
 
-// 응답 데이터 최적화 (모바일용)
+// ?�답 ?�이??최적??(모바?�용)
 export const optimizeResponse = (data: any, includeMetadata: boolean = false): any => {
   if (Array.isArray(data)) {
     return data.map(item => optimizeResponse(item, includeMetadata))
@@ -134,16 +134,16 @@ export const optimizeResponse = (data: any, includeMetadata: boolean = false): a
     const optimized: any = {}
     
     for (const [key, value] of Object.entries(data)) {
-      // null, undefined 값 제거
+      // null, undefined �??�거
       if (value === null || value === undefined) continue
       
-      // 날짜 객체를 ISO 문자열로 변환
+      // ?�짜 객체�?ISO 문자?�로 변??
       if (value instanceof Date) {
         optimized[key] = value.toISOString()
         continue
       }
       
-      // 중첩 객체 재귀 처리
+      // 중첩 객체 ?��? 처리
       if (typeof value === 'object') {
         optimized[key] = optimizeResponse(value, includeMetadata)
         continue
@@ -158,7 +158,7 @@ export const optimizeResponse = (data: any, includeMetadata: boolean = false): a
   return data
 }
 
-// 페이지네이션 응답 최적화
+// ?�이지?�이???�답 최적??
 export const optimizePaginationResponse = (
   data: ExcelDataResponse | SearchResponse,
   includeFullData: boolean = false
@@ -195,7 +195,7 @@ export const optimizePaginationResponse = (
   return optimized
 }
 
-// 검색 결과 캐싱 키 생성
+// 검??결과 캐싱 ???�성
 export const generateSearchCacheKey = (
   fileId: number,
   searchTerm: string,
@@ -212,7 +212,7 @@ export const generateSearchCacheKey = (
   })
 }
 
-// 데이터 캐싱 키 생성
+// ?�이??캐싱 ???�성
 export const generateDataCacheKey = (
   fileId: number,
   page: number,
@@ -228,12 +228,12 @@ export const generateDataCacheKey = (
   })
 }
 
-// 요약 정보 캐싱 키 생성
+// ?�약 ?�보 캐싱 ???�성
 export const generateSummaryCacheKey = (fileId: number): string => {
   return generateCacheKey('summary', fileId, {})
 }
 
-// 캐시 미들웨어
+// 캐시 미들?�어
 export const cacheMiddleware = (type: CacheKey['type'], ttl?: number) => {
   return async (req: any, res: any, next: any) => {
     const fileId = parseInt(req.params.fileId || req.query.fileId || req.body.fileId)
@@ -261,7 +261,7 @@ export const cacheMiddleware = (type: CacheKey['type'], ttl?: number) => {
       console.error('Cache middleware error:', error)
     }
 
-    // 원본 응답 저장
+    // ?�본 ?�답 ?�??
     const originalSend = res.json
     res.json = function(data: any) {
       if (data.success) {

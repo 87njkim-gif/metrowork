@@ -1,33 +1,33 @@
-// SMS 서비스 인터페이스
+// SMS ?�비???�터?�이??
 export interface SMSService {
   sendSMS(phoneNumber: string, message: string): Promise<boolean>
   sendVerificationCode(phoneNumber: string, code: string): Promise<boolean>
 }
 
-// 개발 환경용 SMS 서비스 (콘솔 로그)
+// 개발 ?�경??SMS ?�비??(콘솔 로그)
 class DevelopmentSMSService implements SMSService {
   async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
     try {
-      console.log('📱 [SMS 발송]')
-      console.log(`📞 수신번호: ${phoneNumber}`)
-      console.log(`📝 메시지: ${message}`)
-      console.log('✅ SMS 발송 성공 (개발 환경)')
+      console.log('?�� [SMS 발송]')
+      console.log(`?�� ?�신번호: ${phoneNumber}`)
+      console.log(`?�� 메시지: ${message}`)
+      console.log('??SMS 발송 ?�공 (개발 ?�경)')
       
-      // 개발 환경에서는 항상 성공으로 처리
+      // 개발 ?�경?�서????�� ?�공?�로 처리
       return true
     } catch (error) {
-      console.error('❌ SMS 발송 실패:', error)
+      console.error('??SMS 발송 ?�패:', error)
       return false
     }
   }
 
   async sendVerificationCode(phoneNumber: string, code: string): Promise<boolean> {
-    const message = `[MetroWork] 인증번호: ${code} (5분간 유효)`
+    const message = `[MetroWork] ?�증번호: ${code} (5분간 ?�효)`
     return this.sendSMS(phoneNumber, message)
   }
 }
 
-// Twilio SMS 서비스
+// Twilio SMS ?�비??
 class TwilioSMSService implements SMSService {
   private accountSid: string
   private authToken: string
@@ -41,7 +41,7 @@ class TwilioSMSService implements SMSService {
 
   async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
     try {
-      // Twilio 클라이언트 초기화
+      // Twilio ?�라?�언??초기??
       const twilio = require('twilio')
       const client = twilio(this.accountSid, this.authToken)
 
@@ -52,21 +52,21 @@ class TwilioSMSService implements SMSService {
         to: phoneNumber
       })
 
-      console.log(`✅ Twilio SMS 발송 성공: ${phoneNumber}`)
+      console.log(`??Twilio SMS 발송 ?�공: ${phoneNumber}`)
       return true
     } catch (error) {
-      console.error('❌ Twilio SMS 발송 실패:', error)
+      console.error('??Twilio SMS 발송 ?�패:', error)
       return false
     }
   }
 
   async sendVerificationCode(phoneNumber: string, code: string): Promise<boolean> {
-    const message = `[MetroWork] 인증번호: ${code} (5분간 유효)`
+    const message = `[MetroWork] ?�증번호: ${code} (5분간 ?�효)`
     return this.sendSMS(phoneNumber, message)
   }
 }
 
-// AWS SNS SMS 서비스
+// AWS SNS SMS ?�비??
 class AWSSNSService implements SMSService {
   private sns: any
   private region: string
@@ -92,21 +92,21 @@ class AWSSNSService implements SMSService {
       }
 
       await this.sns.publish(params).promise()
-      console.log(`✅ AWS SNS SMS 발송 성공: ${phoneNumber}`)
+      console.log(`??AWS SNS SMS 발송 ?�공: ${phoneNumber}`)
       return true
     } catch (error) {
-      console.error('❌ AWS SNS SMS 발송 실패:', error)
+      console.error('??AWS SNS SMS 발송 ?�패:', error)
       return false
     }
   }
 
   async sendVerificationCode(phoneNumber: string, code: string): Promise<boolean> {
-    const message = `[MetroWork] 인증번호: ${code} (5분간 유효)`
+    const message = `[MetroWork] ?�증번호: ${code} (5분간 ?�효)`
     return this.sendSMS(phoneNumber, message)
   }
 }
 
-// 네이버 클라우드 플랫폼 SMS 서비스
+// ?�이�??�라?�드 ?�랫??SMS ?�비??
 class NaverCloudSMSService implements SMSService {
   private accessKey: string
   private secretKey: string
@@ -153,21 +153,21 @@ class NaverCloudSMSService implements SMSService {
         }
       )
 
-      console.log(`✅ Naver Cloud SMS 발송 성공: ${phoneNumber}`)
+      console.log(`??Naver Cloud SMS 발송 ?�공: ${phoneNumber}`)
       return true
     } catch (error) {
-      console.error('❌ Naver Cloud SMS 발송 실패:', error)
+      console.error('??Naver Cloud SMS 발송 ?�패:', error)
       return false
     }
   }
 
   async sendVerificationCode(phoneNumber: string, code: string): Promise<boolean> {
-    const message = `[MetroWork] 인증번호: ${code} (5분간 유효)`
+    const message = `[MetroWork] ?�증번호: ${code} (5분간 ?�효)`
     return this.sendSMS(phoneNumber, message)
   }
 }
 
-// SMS 서비스 팩토리
+// SMS ?�비???�토�?
 export class SMSServiceFactory {
   static createService(): SMSService {
     const smsProvider = process.env.SMS_PROVIDER || 'development'
@@ -186,10 +186,10 @@ export class SMSServiceFactory {
   }
 }
 
-// 기본 SMS 서비스 인스턴스
+// 기본 SMS ?�비???�스?�스
 const smsService = SMSServiceFactory.createService()
 
-// 외부에서 사용할 함수들
+// ?��??�서 ?�용???�수??
 export const sendSMS = async (phoneNumber: string, message: string): Promise<boolean> => {
   return smsService.sendSMS(phoneNumber, message)
 }
@@ -198,37 +198,37 @@ export const sendVerificationCode = async (phoneNumber: string, code: string): P
   return smsService.sendVerificationCode(phoneNumber, code)
 }
 
-// SMS 서비스 설정 확인
+// SMS ?�비???�정 ?�인
 export const checkSMSServiceConfig = (): void => {
   const smsProvider = process.env.SMS_PROVIDER || 'development'
   
-  console.log('📱 SMS 서비스 설정:')
-  console.log(`   제공자: ${smsProvider}`)
+  console.log('?�� SMS ?�비???�정:')
+  console.log(`   ?�공?? ${smsProvider}`)
   
   switch (smsProvider.toLowerCase()) {
     case 'twilio':
-      console.log('   Twilio 설정 확인 중...')
-      if (!process.env.TWILIO_ACCOUNT_SID) console.log('   ⚠️  TWILIO_ACCOUNT_SID 미설정')
-      if (!process.env.TWILIO_AUTH_TOKEN) console.log('   ⚠️  TWILIO_AUTH_TOKEN 미설정')
-      if (!process.env.TWILIO_FROM_NUMBER) console.log('   ⚠️  TWILIO_FROM_NUMBER 미설정')
+      console.log('   Twilio ?�정 ?�인 �?..')
+      if (!process.env.TWILIO_ACCOUNT_SID) console.log('   ?�️  TWILIO_ACCOUNT_SID 미설??)
+      if (!process.env.TWILIO_AUTH_TOKEN) console.log('   ?�️  TWILIO_AUTH_TOKEN 미설??)
+      if (!process.env.TWILIO_FROM_NUMBER) console.log('   ?�️  TWILIO_FROM_NUMBER 미설??)
       break
       
     case 'aws-sns':
-      console.log('   AWS SNS 설정 확인 중...')
-      if (!process.env.AWS_ACCESS_KEY_ID) console.log('   ⚠️  AWS_ACCESS_KEY_ID 미설정')
-      if (!process.env.AWS_SECRET_ACCESS_KEY) console.log('   ⚠️  AWS_SECRET_ACCESS_KEY 미설정')
-      if (!process.env.AWS_REGION) console.log('   ⚠️  AWS_REGION 미설정')
+      console.log('   AWS SNS ?�정 ?�인 �?..')
+      if (!process.env.AWS_ACCESS_KEY_ID) console.log('   ?�️  AWS_ACCESS_KEY_ID 미설??)
+      if (!process.env.AWS_SECRET_ACCESS_KEY) console.log('   ?�️  AWS_SECRET_ACCESS_KEY 미설??)
+      if (!process.env.AWS_REGION) console.log('   ?�️  AWS_REGION 미설??)
       break
       
     case 'naver-cloud':
-      console.log('   Naver Cloud 설정 확인 중...')
-      if (!process.env.NAVER_CLOUD_ACCESS_KEY) console.log('   ⚠️  NAVER_CLOUD_ACCESS_KEY 미설정')
-      if (!process.env.NAVER_CLOUD_SECRET_KEY) console.log('   ⚠️  NAVER_CLOUD_SECRET_KEY 미설정')
-      if (!process.env.NAVER_CLOUD_SMS_SERVICE_ID) console.log('   ⚠️  NAVER_CLOUD_SMS_SERVICE_ID 미설정')
-      if (!process.env.NAVER_CLOUD_SMS_FROM_NUMBER) console.log('   ⚠️  NAVER_CLOUD_SMS_FROM_NUMBER 미설정')
+      console.log('   Naver Cloud ?�정 ?�인 �?..')
+      if (!process.env.NAVER_CLOUD_ACCESS_KEY) console.log('   ?�️  NAVER_CLOUD_ACCESS_KEY 미설??)
+      if (!process.env.NAVER_CLOUD_SECRET_KEY) console.log('   ?�️  NAVER_CLOUD_SECRET_KEY 미설??)
+      if (!process.env.NAVER_CLOUD_SMS_SERVICE_ID) console.log('   ?�️  NAVER_CLOUD_SMS_SERVICE_ID 미설??)
+      if (!process.env.NAVER_CLOUD_SMS_FROM_NUMBER) console.log('   ?�️  NAVER_CLOUD_SMS_FROM_NUMBER 미설??)
       break
       
     default:
-      console.log('   개발 환경 모드 (콘솔 로그)')
+      console.log('   개발 ?�경 모드 (콘솔 로그)')
   }
 } 

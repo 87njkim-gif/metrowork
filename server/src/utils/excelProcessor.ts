@@ -7,7 +7,7 @@ import fs from 'fs'
 
 const pool = getPool()
 
-// 데이터 타입 감지
+// ?�이???�??감�?
 export const detectDataType = (value: any): 'string' | 'number' | 'date' | 'boolean' | 'json' => {
   if (value === null || value === undefined) return 'string'
   
@@ -15,14 +15,14 @@ export const detectDataType = (value: any): 'string' | 'number' | 'date' | 'bool
   if (typeof value === 'number') return 'number'
   
   if (typeof value === 'string') {
-    // 날짜 형식 체크
+    // ?�짜 ?�식 체크
     const dateRegex = /^\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4}/
     if (dateRegex.test(value)) {
       const date = new Date(value)
       if (!isNaN(date.getTime())) return 'date'
     }
     
-    // JSON 형식 체크
+    // JSON ?�식 체크
     try {
       JSON.parse(value)
       return 'json'
@@ -34,13 +34,13 @@ export const detectDataType = (value: any): 'string' | 'number' | 'date' | 'bool
   return 'string'
 }
 
-// 컬럼 정보 분석
+// 컬럼 ?�보 분석
 export const analyzeColumns = (headers: string[], sampleData: any[][]): ExcelColumn[] => {
   return headers.map((header, index) => {
-    // 샘플 데이터에서 해당 컬럼의 값들 수집
+    // ?�플 ?�이?�에???�당 컬럼??값들 ?�집
     const columnValues = sampleData.map(row => row[index]).filter(val => val !== null && val !== undefined)
     
-    // 데이터 타입 감지
+    // ?�이???�??감�?
     let columnType: 'string' | 'number' | 'date' | 'boolean' | 'json' = 'string'
     if (columnValues.length > 0) {
       const typeCounts = columnValues.map(val => detectDataType(val))
@@ -55,8 +55,8 @@ export const analyzeColumns = (headers: string[], sampleData: any[][]): ExcelCol
     }
     
     return {
-      id: 0, // DB에서 생성됨
-      file_id: 0, // 나중에 설정
+      id: 0, // DB?�서 ?�성??
+      file_id: 0, // ?�중???�정
       column_index: index,
       column_name: header,
       column_type: columnType,
@@ -70,7 +70,7 @@ export const analyzeColumns = (headers: string[], sampleData: any[][]): ExcelCol
   })
 }
 
-// 데이터 유효성 검사
+// ?�이???�효??검??
 export const validateRowData = (rowData: Record<string, any>, columns: ExcelColumn[]): {
   isValid: boolean
   errors: string[]
@@ -81,34 +81,34 @@ export const validateRowData = (rowData: Record<string, any>, columns: ExcelColu
     const value = rowData[column.column_name]
     
     if (column.is_required && (value === null || value === undefined || value === '')) {
-      errors.push(`${column.column_name}은(는) 필수 항목입니다.`)
+      errors.push(`${column.column_name}?�(?? ?�수 ??��?�니??`)
       continue
     }
     
     if (value !== null && value !== undefined && value !== '') {
-      // 데이터 타입 검증
+      // ?�이???�??검�?
       switch (column.column_type) {
         case 'number':
           if (isNaN(Number(value))) {
-            errors.push(`${column.column_name}은(는) 숫자여야 합니다.`)
+            errors.push(`${column.column_name}?�(?? ?�자?�야 ?�니??`)
           }
           break
         case 'date':
           const date = new Date(value)
           if (isNaN(date.getTime())) {
-            errors.push(`${column.column_name}은(는) 유효한 날짜여야 합니다.`)
+            errors.push(`${column.column_name}?�(?? ?�효???�짜?�야 ?�니??`)
           }
           break
         case 'boolean':
           if (!['true', 'false', '1', '0', true, false].includes(value)) {
-            errors.push(`${column.column_name}은(는) true/false 값이어야 합니다.`)
+            errors.push(`${column.column_name}?�(?? true/false 값이?�야 ?�니??`)
           }
           break
         case 'json':
           try {
             JSON.parse(value)
           } catch {
-            errors.push(`${column.column_name}은(는) 유효한 JSON 형식이어야 합니다.`)
+            errors.push(`${column.column_name}?�(?? ?�효??JSON ?�식?�어???�니??`)
           }
           break
       }
@@ -121,7 +121,7 @@ export const validateRowData = (rowData: Record<string, any>, columns: ExcelColu
   }
 }
 
-// 청크 단위로 데이터 처리
+// �?�� ?�위�??�이??처리
 export const processExcelChunk = async (
   fileId: number,
   data: any[][],
@@ -133,20 +133,20 @@ export const processExcelChunk = async (
   let errors = 0
   
   try {
-    // 배치 삽입을 위한 데이터 준비
+    // 배치 ?�입???�한 ?�이??준�?
     const batchData: Array<[number, number, string, boolean, string]> = []
     
     for (let i = 0; i < data.length && i < chunkSize; i++) {
       const row = data[i]
       const rowIndex = startRow + i
       
-      // 행 데이터를 객체로 변환
+      // ???�이?��? 객체�?변??
       const rowData: Record<string, any> = {}
       columns.forEach((column, colIndex) => {
         rowData[column.column_name] = row[colIndex] || null
       })
       
-      // 유효성 검사
+      // ?�효??검??
       const validation = validateRowData(rowData, columns)
       
       batchData.push([
@@ -163,12 +163,12 @@ export const processExcelChunk = async (
       processed++
     }
     
-    // 배치 삽입 실행
+    // 배치 ?�입 ?�행
     if (batchData.length > 0) {
       const placeholders = batchData.map(() => '(?, ?, ?, ?, ?)').join(', ')
       const values = batchData.flat()
       
-      await pool.execute(
+      await pool.query(
         `INSERT INTO excel_data (file_id, row_index, row_data, is_valid, validation_errors) VALUES ${placeholders}`,
         values
       )
@@ -182,7 +182,7 @@ export const processExcelChunk = async (
   return { processed, errors }
 }
 
-// 엑셀 파일 처리 (청크 단위)
+// ?��? ?�일 처리 (�?�� ?�위)
 export const processExcelFile = async (
   filePath: string,
   fileId: number,
@@ -203,17 +203,17 @@ export const processExcelFile = async (
   }
   
   try {
-    // 엑셀 파일 읽기
+    // ?��? ?�일 ?�기
     const buffer = fs.readFileSync(filePath)
     const workbook = XLSX.read(buffer, { type: 'buffer' })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
     
-    // JSON으로 변환
+    // JSON?�로 변??
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
     
     if (jsonData.length === 0) {
-      throw new Error('빈 엑셀 파일입니다.')
+      throw new Error('�??��? ?�일?�니??')
     }
     
     const headers = jsonData[0] as string[]
@@ -221,20 +221,20 @@ export const processExcelFile = async (
     
     job.totalRows = dataRows.length
     
-    // 컬럼 정보 분석 및 저장
-    const columns = analyzeColumns(headers, dataRows.slice(0, 100)) // 처음 100행으로 분석
+    // 컬럼 ?�보 분석 �??�??
+    const columns = analyzeColumns(headers, dataRows.slice(0, 100)) // 처음 100?�으�?분석
     
-    // 컬럼 정보 저장
+    // 컬럼 ?�보 ?�??
     for (const column of columns) {
       column.file_id = fileId
-      await pool.execute(
+      await pool.query(
         `INSERT INTO excel_columns (file_id, column_index, column_name, column_type, is_required, is_searchable, is_sortable, display_name, description) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [column.file_id, column.column_index, column.column_name, column.column_type, column.is_required, column.is_searchable, column.is_sortable, column.display_name, column.description]
       )
     }
     
-    // 청크 단위로 데이터 처리
+    // �?�� ?�위�??�이??처리
     let totalProcessed = 0
     let totalErrors = 0
     
@@ -245,18 +245,18 @@ export const processExcelFile = async (
       totalProcessed += result.processed
       totalErrors += result.errors
       
-      // 진행률 업데이트
+      // 진행�??�데?�트
       job.processedRows = totalProcessed
       job.progress = Math.round((totalProcessed / job.totalRows) * 100)
       
-      // 메모리 정리
+      // 메모�??�리
       if (i % (chunkSize * 10) === 0) {
         global.gc && global.gc()
       }
     }
     
-    // 파일 처리 완료 상태 업데이트
-    await pool.execute(
+    // ?�일 처리 ?�료 ?�태 ?�데?�트
+    await pool.query(
       'UPDATE excel_files SET is_processed = TRUE, total_rows = ?, total_columns = ? WHERE id = ?',
       [job.totalRows, columns.length, fileId]
     )
@@ -264,36 +264,36 @@ export const processExcelFile = async (
     job.status = 'completed'
     job.completedAt = new Date()
     
-    // 캐시 정리
+    // 캐시 ?�리
     await clearFileCache(fileId)
     
   } catch (error) {
     console.error('Process excel file error:', error)
     job.status = 'failed'
-    job.error = error instanceof Error ? error.message : '알 수 없는 오류'
+    job.error = error instanceof Error ? error.message : '?????�는 ?�류'
     job.completedAt = new Date()
   }
   
   return job
 }
 
-// 파일 정보 조회
+// ?�일 ?�보 조회
 export const getFileInfo = async (fileId: number): Promise<any> => {
-  const [files] = await pool.execute(
+  const [files] = await pool.query(
     'SELECT * FROM excel_files WHERE id = ?',
     [fileId]
   ) as any[]
   
   if (files.length === 0) {
-    throw new Error('파일을 찾을 수 없습니다.')
+    throw new Error('?�일??찾을 ???�습?�다.')
   }
   
   return files[0]
 }
 
-// 컬럼 정보 조회
+// 컬럼 ?�보 조회
 export const getColumns = async (fileId: number): Promise<ExcelColumn[]> => {
-  const [columns] = await pool.execute(
+  const [columns] = await pool.query(
     'SELECT * FROM excel_columns WHERE file_id = ? ORDER BY column_index',
     [fileId]
   ) as any[]
@@ -301,13 +301,13 @@ export const getColumns = async (fileId: number): Promise<ExcelColumn[]> => {
   return columns
 }
 
-// 데이터 개수 조회
+// ?�이??개수 조회
 export const getDataCount = async (fileId: number, filters?: Record<string, any>): Promise<number> => {
   let query = 'SELECT COUNT(*) as count FROM excel_data WHERE file_id = ?'
   const params: any[] = [fileId]
   
   if (filters) {
-    // 필터 조건 추가
+    // ?�터 조건 추�?
     const conditions: string[] = []
     for (const [key, value] of Object.entries(filters)) {
       if (value !== null && value !== undefined) {
@@ -321,11 +321,11 @@ export const getDataCount = async (fileId: number, filters?: Record<string, any>
     }
   }
   
-  const [result] = await pool.execute(query, params) as any[]
+  const [result] = await pool.query(query, params) as any[]
   return result[0].count
 }
 
-// 검색 조건 생성
+// 검??조건 ?�성
 export const buildSearchQuery = (
   baseQuery: string,
   searchTerm?: string,
@@ -336,7 +336,7 @@ export const buildSearchQuery = (
   const conditions: string[] = []
   const params: any[] = []
   
-  // 검색어 처리
+  // 검?�어 처리
   if (searchTerm) {
     conditions.push(`(
       JSON_SEARCH(row_data, 'one', ?, null, '$.*') IS NOT NULL
@@ -344,28 +344,28 @@ export const buildSearchQuery = (
     params.push(`%${searchTerm}%`)
   }
   
-  // 필터 처리
+  // ?�터 처리
   if (filters) {
     for (const [key, value] of Object.entries(filters)) {
       if (value !== null && value !== undefined) {
         if (typeof value === 'object' && value.min !== undefined && value.max !== undefined) {
-          // 범위 검색
+          // 범위 검??
           conditions.push(`(
             JSON_EXTRACT(row_data, '$.${key}') >= ? AND 
             JSON_EXTRACT(row_data, '$.${key}') <= ?
           )`)
           params.push(value.min, value.max)
         } else {
-          // 정확한 값 검색 - JSON 문자열에서 따옴표 제거
+          // ?�확??�?검??- JSON 문자?�에???�옴???�거
           let cleanValue = value;
           if (typeof value === 'string') {
-            // 모든 형태의 따옴표 제거 (이스케이프된 따옴표, 일반 따옴표)
+            // 모든 ?�태???�옴???�거 (?�스케?�프???�옴?? ?�반 ?�옴??
             cleanValue = value
-              .replace(/^\\"/, '')  // 시작 부분의 이스케이프된 따옴표 제거
-              .replace(/\\"$/, '')  // 끝 부분의 이스케이프된 따옴표 제거
-              .replace(/^"/, '')    // 시작 부분의 일반 따옴표 제거
-              .replace(/"$/, '');   // 끝 부분의 일반 따옴표 제거
-            console.log(`필터 값 처리: "${value}" -> "${cleanValue}"`);
+              .replace(/^\\"/, '')  // ?�작 부분의 ?�스케?�프???�옴???�거
+              .replace(/\\"$/, '')  // ??부분의 ?�스케?�프???�옴???�거
+              .replace(/^"/, '')    // ?�작 부분의 ?�반 ?�옴???�거
+              .replace(/"$/, '');   // ??부분의 ?�반 ?�옴???�거
+            console.log(`?�터 �?처리: "${value}" -> "${cleanValue}"`);
           }
           conditions.push(`JSON_UNQUOTE(JSON_EXTRACT(row_data, '$.${key}')) = ?`)
           params.push(cleanValue)
@@ -376,7 +376,7 @@ export const buildSearchQuery = (
   
   let query = baseQuery
   if (conditions.length > 0) {
-    // baseQuery에 이미 WHERE가 있는지 확인
+    // baseQuery???��? WHERE가 ?�는지 ?�인
     if (baseQuery.toUpperCase().includes('WHERE')) {
       query += ` AND ${conditions.join(' AND ')}`
     } else {
@@ -384,7 +384,7 @@ export const buildSearchQuery = (
     }
   }
   
-  // 정렬 처리
+  // ?�렬 처리
   if (sortBy) {
     query += ` ORDER BY JSON_EXTRACT(row_data, '$.${sortBy}') ${sortOrder.toUpperCase()}`
   }

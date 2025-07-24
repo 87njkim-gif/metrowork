@@ -3,8 +3,8 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-// Debug: 환경변수 확인
-console.log('🔍 Database Config Debug:')
+// Debug: ?�경변???�인
+console.log('?�� Database Config Debug:')
 console.log('DB_HOST:', process.env.DB_HOST)
 console.log('DB_PORT:', process.env.DB_PORT)
 console.log('DB_USER:', process.env.DB_USER)
@@ -22,7 +22,7 @@ const dbConfig = {
   connectionTimeoutMillis: 2000,
 }
 
-console.log('🔍 Final DB Config:', {
+console.log('?�� Final DB Config:', {
   host: dbConfig.host,
   port: dbConfig.port,
   user: dbConfig.user,
@@ -37,13 +37,13 @@ const pool = new Pool(dbConfig)
 export const connectDB = async (): Promise<void> => {
   try {
     const client = await pool.connect()
-    console.log('✅ PostgreSQL Database connected successfully')
+    console.log('??PostgreSQL Database connected successfully')
     client.release()
     
     // Initialize database tables
     await initializeTables()
   } catch (error) {
-    console.error('❌ Database connection failed:', error)
+    console.error('??Database connection failed:', error)
     throw error
   }
 }
@@ -205,9 +205,9 @@ const initializeTables = async (): Promise<void> => {
     // Insert initial admin user
     await insertInitialData()
 
-    console.log('✅ Database tables initialized successfully')
+    console.log('??Database tables initialized successfully')
   } catch (error) {
-    console.error('❌ Failed to initialize database tables:', error)
+    console.error('??Failed to initialize database tables:', error)
     throw error
   }
 }
@@ -225,9 +225,9 @@ const createIndexes = async (): Promise<void> => {
     await pool.query('CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token)')
     
-    console.log('✅ Database indexes created successfully')
+    console.log('??Database indexes created successfully')
   } catch (error) {
-    console.error('❌ Failed to create indexes:', error)
+    console.error('??Failed to create indexes:', error)
     throw error
   }
 }
@@ -243,15 +243,15 @@ const insertInitialData = async (): Promise<void> => {
       await pool.query(`
         INSERT INTO users (email, password, name, role, status, department, position, approved_at) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      `, ['admin@metrowork.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2O', '시스템 관리자', 'admin', 'approved', 'IT', '시스템 관리자'])
+      `, ['admin@metrowork.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2O', '?�스??관리자', 'admin', 'approved', 'IT', '?�스??관리자'])
       
       // Set approved_by to self
       await pool.query('UPDATE users SET approved_by = id WHERE email = $1', ['admin@metrowork.com'])
       
-      console.log('✅ Initial admin user created successfully')
+      console.log('??Initial admin user created successfully')
     }
   } catch (error) {
-    console.error('❌ Failed to insert initial data:', error)
+    console.error('??Failed to insert initial data:', error)
     throw error
   }
 }
@@ -263,9 +263,9 @@ export const getPool = () => pool
 export const closeDB = async (): Promise<void> => {
   try {
     await pool.end()
-    console.log('✅ Database connection closed')
+    console.log('??Database connection closed')
   } catch (error) {
-    console.error('❌ Error closing database connection:', error)
+    console.error('??Error closing database connection:', error)
     throw error
   }
 }

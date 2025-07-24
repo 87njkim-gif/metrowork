@@ -20,14 +20,14 @@ import {
 
 const pool = getPool()
 
-// 엑셀 데이터 행 체크/해제 (새로운 시스템)
+// ?��? ?�이????체크/?�제 (?�로???�스??
 export const checkWorkItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        message: '입력 데이터가 올바르지 않습니다.',
+        message: '?�력 ?�이?��? ?�바르�? ?�습?�다.',
         errors: errors.array()
       })
       return
@@ -37,8 +37,8 @@ export const checkWorkItem = async (req: Request, res: Response): Promise<void> 
     const userId = req.user!.id
     const { isCompleted, notes }: CheckWorkRequest = req.body
 
-    // 엑셀 데이터 존재 여부 확인
-    const [excelData] = await pool.execute(
+    // ?��? ?�이??존재 ?��? ?�인
+    const [excelData] = await pool.query(
       'SELECT id, file_id FROM excel_data WHERE id = ?',
       [rowId]
     ) as any[]
@@ -46,58 +46,58 @@ export const checkWorkItem = async (req: Request, res: Response): Promise<void> 
     if (excelData.length === 0) {
       res.status(404).json({
         success: false,
-        message: '해당 엑셀 데이터를 찾을 수 없습니다.'
+        message: '?�당 ?��? ?�이?��? 찾을 ???�습?�다.'
       })
       return
     }
 
-    // 업무 해제 권한 확인
+    // ?�무 ?�제 권한 ?�인
     if (!isCompleted) {
       const canUncomplete = await canUncompleteWork(rowId, userId)
       if (!canUncomplete) {
         res.status(403).json({
           success: false,
-          message: '업무를 완료한 사용자만 해제할 수 있습니다.'
+          message: '?�무�??�료???�용?�만 ?�제?????�습?�다.'
         })
         return
       }
     }
 
-    // 기존 상태 확인 (활동 로그용)
-    const [existingStatus] = await pool.execute(
+    // 기존 ?�태 ?�인 (?�동 로그??
+    const [existingStatus] = await pool.query(
       'SELECT is_completed FROM work_status WHERE excel_data_id = ? AND user_id = ?',
       [rowId, userId]
     ) as any[]
 
     const oldStatus = existingStatus.length > 0 ? existingStatus[0].is_completed : null
 
-    // 상태 토글
+    // ?�태 ?��?
     const workStatus = await toggleWorkStatus(rowId, userId, isCompleted, notes)
 
-    // 완료 처리인 경우 모든 사용자에게 동기화
+    // ?�료 처리??경우 모든 ?�용?�에�??�기??
     if (isCompleted) {
       await syncWorkStatusToAllUsers(rowId, true)
     }
 
     res.status(200).json({
       success: true,
-      message: `업무가 ${isCompleted ? '완료' : '미완료'}로 변경되었습니다.`,
+      message: `?�무가 ${isCompleted ? '?�료' : '미완�?}�?변경되?�습?�다.`,
       data: {
         workStatus,
         action: isCompleted ? 'completed' : 'uncompleted',
-        synced: isCompleted // 동기화 여부
+        synced: isCompleted // ?�기???��?
       }
     })
   } catch (error) {
     console.error('Check work item error:', error)
     res.status(500).json({
       success: false,
-      message: '업무 상태 변경 중 오류가 발생했습니다.'
+      message: '?�무 ?�태 변�?�??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 완료된 업무 목록 조회
+// ?�료???�무 목록 조회
 export const getCompletedWorkList = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1
@@ -139,19 +139,19 @@ export const getCompletedWorkList = async (req: Request, res: Response): Promise
     console.error('Get completed work list error:', error)
     res.status(500).json({
       success: false,
-      message: '완료된 업무 목록 조회 중 오류가 발생했습니다.'
+      message: '?�료???�무 목록 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 오늘 업무 날짜 설정
+// ?�늘 ?�무 ?�짜 ?�정
 export const setTodayDate = async (req: Request, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        message: '입력 데이터가 올바르지 않습니다.',
+        message: '?�력 ?�이?��? ?�바르�? ?�습?�다.',
         errors: errors.array()
       })
       return
@@ -160,12 +160,12 @@ export const setTodayDate = async (req: Request, res: Response): Promise<void> =
     const userId = req.user!.id
     const { todayDate }: TodayDateRequest = req.body
 
-    // 날짜 형식 검증
+    // ?�짜 ?�식 검�?
     const date = new Date(todayDate)
     if (isNaN(date.getTime())) {
       res.status(400).json({
         success: false,
-        message: '유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.'
+        message: '?�효?��? ?��? ?�짜 ?�식?�니?? YYYY-MM-DD ?�식?�로 ?�력?�주?�요.'
       })
       return
     }
@@ -174,7 +174,7 @@ export const setTodayDate = async (req: Request, res: Response): Promise<void> =
 
     res.status(200).json({
       success: true,
-      message: '오늘 날짜가 설정되었습니다.',
+      message: '?�늘 ?�짜가 ?�정?�었?�니??',
       data: {
         todayDate
       }
@@ -183,12 +183,12 @@ export const setTodayDate = async (req: Request, res: Response): Promise<void> =
     console.error('Set today date error:', error)
     res.status(500).json({
       success: false,
-      message: '오늘 날짜 설정 중 오류가 발생했습니다.'
+      message: '?�늘 ?�짜 ?�정 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 현재 설정된 오늘 날짜 조회
+// ?�재 ?�정???�늘 ?�짜 조회
 export const getTodayDate = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id
@@ -204,12 +204,12 @@ export const getTodayDate = async (req: Request, res: Response): Promise<void> =
     console.error('Get today date error:', error)
     res.status(500).json({
       success: false,
-      message: '오늘 날짜 조회 중 오류가 발생했습니다.'
+      message: '?�늘 ?�짜 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 특정 날짜의 완료된 업무 조회
+// ?�정 ?�짜???�료???�무 조회
 export const getCompletedWorkByDate = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id
@@ -217,12 +217,12 @@ export const getCompletedWorkByDate = async (req: Request, res: Response): Promi
     const page = parseInt(req.query.page as string) || 1
     const limit = parseInt(req.query.limit as string) || 20
 
-    // 날짜 형식 검증
+    // ?�짜 ?�식 검�?
     const dateObj = new Date(date)
     if (isNaN(dateObj.getTime())) {
       res.status(400).json({
         success: false,
-        message: '유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식으로 입력해주세요.'
+        message: '?�효?��? ?��? ?�짜 ?�식?�니?? YYYY-MM-DD ?�식?�로 ?�력?�주?�요.'
       })
       return
     }
@@ -248,12 +248,12 @@ export const getCompletedWorkByDate = async (req: Request, res: Response): Promi
     console.error('Get completed work by date error:', error)
     res.status(500).json({
       success: false,
-      message: '날짜별 완료된 업무 조회 중 오류가 발생했습니다.'
+      message: '?�짜�??�료???�무 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 업무 통계 조회
+// ?�무 ?�계 조회
 export const getWorkStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const [summary, userStats, fileStats] = await Promise.all([
@@ -274,19 +274,19 @@ export const getWorkStats = async (req: Request, res: Response): Promise<void> =
     console.error('Get work stats error:', error)
     res.status(500).json({
       success: false,
-      message: '업무 통계 조회 중 오류가 발생했습니다.'
+      message: '?�무 ?�계 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 대량 체크/해제
+// ?�??체크/?�제
 export const bulkCheckWork = async (req: Request, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        message: '입력 데이터가 올바르지 않습니다.',
+        message: '?�력 ?�이?��? ?�바르�? ?�습?�다.',
         errors: errors.array()
       })
       return
@@ -298,7 +298,7 @@ export const bulkCheckWork = async (req: Request, res: Response): Promise<void> 
     if (!rowIds || rowIds.length === 0) {
       res.status(400).json({
         success: false,
-        message: '처리할 행 ID가 필요합니다.'
+        message: '처리????ID가 ?�요?�니??'
       })
       return
     }
@@ -306,7 +306,7 @@ export const bulkCheckWork = async (req: Request, res: Response): Promise<void> 
     if (rowIds.length > 100) {
       res.status(400).json({
         success: false,
-        message: '한 번에 최대 100개 행만 처리할 수 있습니다.'
+        message: '??번에 최�? 100�??�만 처리?????�습?�다.'
       })
       return
     }
@@ -315,29 +315,29 @@ export const bulkCheckWork = async (req: Request, res: Response): Promise<void> 
 
     res.status(200).json({
       success: true,
-      message: `대량 처리가 완료되었습니다. (성공: ${result.success}, 실패: ${result.failed})`,
+      message: `?�??처리가 ?�료?�었?�니?? (?�공: ${result.success}, ?�패: ${result.failed})`,
       data: result
     })
   } catch (error) {
     console.error('Bulk check work error:', error)
     res.status(500).json({
       success: false,
-      message: '대량 처리 중 오류가 발생했습니다.'
+      message: '?�??처리 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 사용자별 업무 현황 조회
+// ?�용?�별 ?�무 ?�황 조회
 export const getUserWorkStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id
     const todayDate = await getUserTodayDate(userId)
 
-    // 오늘 완료된 업무 조회
+    // ?�늘 ?�료???�무 조회
     const todayWork = await getCompletedWorkByDate(userId, todayDate, 1, 10)
 
-    // 전체 통계
-    const [totalStats] = await pool.execute(`
+    // ?�체 ?�계
+    const [totalStats] = await pool.query(`
       SELECT 
         COUNT(*) as total_items,
         COUNT(CASE WHEN is_completed = TRUE THEN 1 END) as completed_items,
@@ -365,12 +365,12 @@ export const getUserWorkStatus = async (req: Request, res: Response): Promise<vo
     console.error('Get user work status error:', error)
     res.status(500).json({
       success: false,
-      message: '사용자 업무 현황 조회 중 오류가 발생했습니다.'
+      message: '?�용???�무 ?�황 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 업무 활동 히스토리 조회
+// ?�무 ?�동 ?�스?�리 조회
 export const getWorkHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1
@@ -414,8 +414,8 @@ export const getWorkHistory = async (req: Request, res: Response): Promise<void>
 
     const whereClause = whereConditions.join(' AND ')
 
-    // 전체 개수 조회
-    const [countResult] = await pool.execute(
+    // ?�체 개수 조회
+    const [countResult] = await pool.query(
       `SELECT COUNT(*) as total
        FROM work_history wh
        JOIN excel_data ed ON wh.excel_data_id = ed.id
@@ -425,8 +425,8 @@ export const getWorkHistory = async (req: Request, res: Response): Promise<void>
 
     const total = countResult[0].total
 
-    // 활동 히스토리 조회
-    const [activities] = await pool.execute(
+    // ?�동 ?�스?�리 조회
+    const [activities] = await pool.query(
       `SELECT 
         wh.*,
         u.name as user_name,
@@ -476,42 +476,42 @@ export const getWorkHistory = async (req: Request, res: Response): Promise<void>
     console.error('Get work history error:', error)
     res.status(500).json({
       success: false,
-      message: '업무 활동 히스토리 조회 중 오류가 발생했습니다.'
+      message: '?�무 ?�동 ?�스?�리 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 유효성 검사 규칙
+// ?�효??검??규칙
 export const checkWorkValidation = [
   body('isCompleted')
     .isBoolean()
-    .withMessage('완료 상태는 boolean 값이어야 합니다.'),
+    .withMessage('?�료 ?�태??boolean 값이?�야 ?�니??'),
   body('notes')
     .optional()
     .trim()
     .isLength({ max: 1000 })
-    .withMessage('메모는 1000자 이하여야 합니다.')
+    .withMessage('메모??1000???�하?�야 ?�니??')
 ]
 
 export const todayDateValidation = [
   body('todayDate')
     .matches(/^\d{4}-\d{2}-\d{2}$/)
-    .withMessage('날짜는 YYYY-MM-DD 형식이어야 합니다.')
+    .withMessage('?�짜??YYYY-MM-DD ?�식?�어???�니??')
 ]
 
 export const bulkCheckValidation = [
   body('rowIds')
     .isArray({ min: 1, max: 100 })
-    .withMessage('행 ID는 1-100개의 배열이어야 합니다.'),
+    .withMessage('??ID??1-100개의 배열?�어???�니??'),
   body('rowIds.*')
     .isInt({ min: 1 })
-    .withMessage('행 ID는 양의 정수여야 합니다.'),
+    .withMessage('??ID???�의 ?�수?�야 ?�니??'),
   body('isCompleted')
     .isBoolean()
-    .withMessage('완료 상태는 boolean 값이어야 합니다.'),
+    .withMessage('?�료 ?�태??boolean 값이?�야 ?�니??'),
   body('notes')
     .optional()
     .trim()
     .isLength({ max: 1000 })
-    .withMessage('메모는 1000자 이하여야 합니다.')
+    .withMessage('메모??1000???�하?�야 ?�니??')
 ] 

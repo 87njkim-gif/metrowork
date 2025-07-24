@@ -64,7 +64,7 @@ export interface CompletedWorkResponse {
 }
 
 export interface TodayDateRequest {
-  todayDate: string // YYYY-MM-DD 형식
+  todayDate: string // YYYY-MM-DD ?�식
 }
 
 export interface WorkSummary {
@@ -85,7 +85,7 @@ export interface UserWorkStats {
   todayCompleted: number
   thisWeekCompleted: number
   thisMonthCompleted: number
-  averageCompletionTime: number // 분 단위
+  averageCompletionTime: number // �??�위
   lastCompletedAt?: Date
 }
 

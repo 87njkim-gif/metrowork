@@ -4,7 +4,7 @@ import { getUserWorkStats, getGlobalWorkStats } from '../utils/workProcessor'
 
 const pool = getPool()
 
-// 회원별 업무 처리 통계 조회
+// ?�원�??�무 처리 ?�계 조회
 export const getUserWorkStatistics = async (req: Request, res: Response): Promise<void> => {
   try {
     const stats = await getUserWorkStats()
@@ -27,12 +27,12 @@ export const getUserWorkStatistics = async (req: Request, res: Response): Promis
     console.error('Get user work statistics error:', error)
     res.status(500).json({
       success: false,
-      message: '회원별 업무 통계 조회 중 오류가 발생했습니다.'
+      message: '?�원�??�무 ?�계 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 전역 업무 현황 조회
+// ?�역 ?�무 ?�황 조회
 export const getGlobalWorkStatistics = async (req: Request, res: Response): Promise<void> => {
   try {
     const stats = await getGlobalWorkStats()
@@ -55,27 +55,27 @@ export const getGlobalWorkStatistics = async (req: Request, res: Response): Prom
     console.error('Get global work statistics error:', error)
     res.status(500).json({
       success: false,
-      message: '전역 업무 현황 조회 중 오류가 발생했습니다.'
+      message: '?�역 ?�무 ?�황 조회 �??�류가 발생?�습?�다.'
     })
   }
 }
 
-// 관리자 대시보드 통계
+// 관리자 ?�?�보???�계
 export const getAdminDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    // 회원별 통계
+    // ?�원�??�계
     const userStats = await getUserWorkStats()
     
-    // 전역 업무 통계
+    // ?�역 ?�무 ?�계
     const globalStats = await getGlobalWorkStats()
     
-    // 전체 사용자 수
-    const [userCount] = await pool.execute(
+    // ?�체 ?�용????
+    const [userCount] = await pool.query(
       'SELECT COUNT(*) as total FROM users WHERE role = "user" AND status = "approved"'
     ) as any[]
     
-    // 오늘 완료된 업무 수
-    const [todayCompleted] = await pool.execute(
+    // ?�늘 ?�료???�무 ??
+    const [todayCompleted] = await pool.query(
       'SELECT COUNT(*) as total FROM work_status WHERE is_completed = TRUE AND DATE(completed_at) = CURDATE()'
     ) as any[]
 
@@ -88,8 +88,8 @@ export const getAdminDashboardStats = async (req: Request, res: Response): Promi
           todayCompleted: todayCompleted[0].total,
           totalCompleted: userStats.reduce((sum, stat) => sum + stat.completed_count, 0)
         },
-        userStats: userStats.slice(0, 10), // 상위 10명만
-        globalStats: globalStats.slice(0, 20), // 상위 20개 업무만
+        userStats: userStats.slice(0, 10), // ?�위 10명만
+        globalStats: globalStats.slice(0, 20), // ?�위 20�??�무�?
         topPerformers: userStats
           .filter(stat => stat.completed_count > 0)
           .sort((a, b) => b.completed_count - a.completed_count)
@@ -100,7 +100,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response): Promi
     console.error('Get admin dashboard stats error:', error)
     res.status(500).json({
       success: false,
-      message: '관리자 대시보드 통계 조회 중 오류가 발생했습니다.'
+      message: '관리자 ?�?�보???�계 조회 �??�류가 발생?�습?�다.'
     })
   }
 } 
