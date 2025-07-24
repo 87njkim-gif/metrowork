@@ -467,6 +467,26 @@ export const updateAdminPassword = async (req: Request, res: Response): Promise<
   }
 }
 
+// 리프레시 토큰 저장 함수 (임시 구현)
+const saveRefreshToken = async (userId: number, refreshToken: string): Promise<void> => {
+  try {
+    // 임시로 콘솔에만 출력 (실제로는 Redis나 DB에 저장)
+    console.log(`리프레시 토큰 저장: 사용자 ${userId}, 토큰: ${refreshToken.substring(0, 10)}...`)
+  } catch (error) {
+    console.error('Save refresh token error:', error)
+  }
+}
+
+// 리프레시 토큰 삭제 함수 (임시 구현)
+const deleteRefreshToken = async (refreshToken: string): Promise<void> => {
+  try {
+    // 임시로 콘솔에만 출력 (실제로는 Redis나 DB에서 삭제)
+    console.log(`리프레시 토큰 삭제: ${refreshToken.substring(0, 10)}...`)
+  } catch (error) {
+    console.error('Delete refresh token error:', error)
+  }
+}
+
 // 리프레시 토큰 검증 함수 (캐시에서 확인)
 const verifyRefreshToken = async (refreshToken: string): Promise<number | null> => {
   try {
