@@ -1,0 +1,35 @@
+{
+  "name": "metrowork-mobile-app",
+  "version": "1.0.0",
+  "description": "모바일 전용 웹앱 - 회원 관리 및 엑셀 데이터 관리",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "start": "cd server && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "react",
+    "typescript",
+    "nodejs",
+    "express",
+    "mysql",
+    "mobile",
+    "pwa",
+    "tailwind"
+  ],
+  "author": "MetroWork Team",
+  "license": "MIT"
+} 

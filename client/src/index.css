@@ -1,0 +1,256 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 모바일 최적화 스타일 */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+  }
+
+  /* 터치 타겟 최소 크기 */
+  button, a, input, select, textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* 스크롤바 숨기기 */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer components {
+  /* 모바일 버튼 스타일 */
+  .btn-primary {
+    @apply bg-primary-600 text-white font-medium py-3 px-6 rounded-xl shadow-mobile 
+           active:bg-primary-700 active:scale-95 transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-800 font-medium py-3 px-6 rounded-xl shadow-mobile
+           active:bg-gray-300 active:scale-95 transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-success {
+    @apply bg-success-600 text-white font-medium py-3 px-6 rounded-xl shadow-mobile
+           active:bg-success-700 active:scale-95 transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-warning {
+    @apply bg-warning-600 text-white font-medium py-3 px-6 rounded-xl shadow-mobile
+           active:bg-warning-700 active:scale-95 transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-error {
+    @apply bg-error-600 text-white font-medium py-3 px-6 rounded-xl shadow-mobile
+           active:bg-error-700 active:scale-95 transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  /* 모바일 카드 스타일 */
+  .card {
+    @apply bg-white rounded-2xl shadow-mobile p-4 border border-gray-100;
+  }
+
+  .card-lg {
+    @apply bg-white rounded-2xl shadow-mobile-lg p-6 border border-gray-100;
+  }
+
+  /* 모바일 입력 필드 */
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 
+           focus:ring-primary-500 focus:border-transparent outline-none
+           transition-all duration-200 text-base;
+  }
+
+  /* 모바일 네비게이션 바 */
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 
+           shadow-mobile-lg z-50 px-4 py-2;
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center justify-center py-2 px-3 rounded-xl
+           transition-all duration-200 active:bg-gray-100;
+  }
+
+  .nav-item.active {
+    @apply text-primary-600 bg-primary-50;
+  }
+
+  /* 로딩 스피너 */
+  .loading-spinner {
+    @apply animate-spin rounded-full border-4 border-gray-200 border-t-primary-600;
+  }
+
+  /* 스와이프 애니메이션 */
+  .swipe-container {
+    @apply relative overflow-hidden;
+  }
+
+  .swipe-content {
+    @apply transition-transform duration-300 ease-out;
+  }
+
+  /* 모바일 헤더 */
+  .mobile-header {
+    @apply bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between
+           sticky top-0 z-40 shadow-sm;
+  }
+
+  /* 모바일 페이지 컨테이너 */
+  .page-container {
+    @apply min-h-screen bg-gray-50 pb-20;
+  }
+
+  .page-content {
+    @apply px-4 py-6;
+  }
+
+  /* 터치 피드백 */
+  .touch-feedback {
+    @apply active:scale-95 transition-transform duration-150;
+  }
+
+  /* 모바일 리스트 아이템 */
+  .list-item {
+    @apply bg-white border-b border-gray-100 px-4 py-4 active:bg-gray-50
+           transition-colors duration-150;
+  }
+
+  /* 모바일 모달 */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-t-3xl w-full max-h-[90vh] overflow-hidden
+           animate-slide-up;
+  }
+
+  /* 모바일 토스트 */
+  .toast {
+    @apply fixed top-4 left-4 right-4 z-50 bg-white rounded-xl shadow-mobile-lg
+           border border-gray-200 p-4 animate-slide-down;
+  }
+
+  /* 스켈레톤 로딩 */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+
+  /* 모바일 탭 */
+  .tab-container {
+    @apply flex bg-gray-100 rounded-xl p-1;
+  }
+
+  .tab-item {
+    @apply flex-1 py-2 px-4 text-center rounded-lg font-medium transition-all duration-200
+           active:scale-95;
+  }
+
+  .tab-item.active {
+    @apply bg-white text-primary-600 shadow-sm;
+  }
+
+  /* 모바일 스위치 */
+  .switch {
+    @apply relative inline-flex h-6 w-11 items-center rounded-full
+           transition-colors duration-200 focus:outline-none focus:ring-2
+           focus:ring-primary-500 focus:ring-offset-2;
+  }
+
+  .switch.enabled {
+    @apply bg-primary-600;
+  }
+
+  .switch.disabled {
+    @apply bg-gray-200;
+  }
+
+  .switch-thumb {
+    @apply inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200;
+  }
+
+  .switch-thumb.enabled {
+    @apply translate-x-6;
+  }
+
+  .switch-thumb.disabled {
+    @apply translate-x-1;
+  }
+}
+
+@layer utilities {
+  /* 안전 영역 (노치, 홈 인디케이터 등) */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* 터치 액션 최적화 */
+  .touch-pan-x {
+    touch-action: pan-x;
+  }
+
+  .touch-pan-y {
+    touch-action: pan-y;
+  }
+
+  .touch-none {
+    touch-action: none;
+  }
+
+  /* 스크롤 스냅 */
+  .snap-x {
+    scroll-snap-type: x mandatory;
+  }
+
+  .snap-y {
+    scroll-snap-type: y mandatory;
+  }
+
+  .snap-start {
+    scroll-snap-align: start;
+  }
+
+  .snap-center {
+    scroll-snap-align: center;
+  }
+
+  .snap-end {
+    scroll-snap-align: end;
+  }
+} 
