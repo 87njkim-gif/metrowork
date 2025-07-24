@@ -3,8 +3,8 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-// Debug: ?�경변???�인
-console.log('?�� Database Config Debug:')
+// Debug: ?�경변???�인
+console.log('?�� Database Config Debug:')
 console.log('DB_HOST:', process.env.DB_HOST)
 console.log('DB_PORT:', process.env.DB_PORT)
 console.log('DB_USER:', process.env.DB_USER)
@@ -22,7 +22,7 @@ const dbConfig = {
   connectionTimeoutMillis: 2000,
 }
 
-console.log('?�� Final DB Config:', {
+console.log('?�� Final DB Config:', {
   host: dbConfig.host,
   port: dbConfig.port,
   user: dbConfig.user,
@@ -243,7 +243,7 @@ const insertInitialData = async (): Promise<void> => {
       await pool.query(`
         INSERT INTO users (email, password, name, role, status, department, position, approved_at) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      `, ['admin@metrowork.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2O', '?�스??관리자', 'admin', 'approved', 'IT', '?�스??관리자'])
+      `, ['admin@metrowork.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2O', '시스템 관리자', 'admin', 'approved', 'IT', '시스템 관리자'])
       
       // Set approved_by to self
       await pool.query('UPDATE users SET approved_by = id WHERE email = $1', ['admin@metrowork.com'])
