@@ -3,6 +3,14 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
+// Debug: 환경변수 확인
+console.log('🔍 Database Config Debug:')
+console.log('DB_HOST:', process.env.DB_HOST)
+console.log('DB_PORT:', process.env.DB_PORT)
+console.log('DB_USER:', process.env.DB_USER)
+console.log('DB_NAME:', process.env.DB_NAME)
+console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET')
+
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
@@ -13,6 +21,14 @@ const dbConfig = {
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 }
+
+console.log('🔍 Final DB Config:', {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  user: dbConfig.user,
+  database: dbConfig.database,
+  password: dbConfig.password ? '***SET***' : 'NOT SET'
+})
 
 // Create connection pool
 const pool = new Pool(dbConfig)
