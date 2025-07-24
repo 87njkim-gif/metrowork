@@ -13,7 +13,7 @@ import {
 
 // API 기본 설정
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://metrowork.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -27,7 +27,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+      baseURL: process.env.REACT_APP_API_URL || 'https://metrowork.onrender.com/api',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
