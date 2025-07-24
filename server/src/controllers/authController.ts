@@ -98,14 +98,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     console.log('받은 데이터:', { name, password })
 
     // 사용자 조회
-    const [users] = await pool.query(
+    const result = await pool.query(
       'SELECT * FROM users WHERE name = $1',
       [name]
-    ) as any[]
+    )
 
-    console.log('DB 조회 결과:', users.length, '명의 사용자 발견')
+    console.log('DB 조회 결과:', result.rows.length, '명의 사용자 발견')
 
-    if (users.length === 0) {
+    if (result.rows.length === 0) {
       console.log('사용자를 찾을 수 없음')
       res.status(401).json({
         success: false,
@@ -114,7 +114,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return
     }
 
-    const user = users[0]
+    const user = result.rows[0]
     console.log('찾은 사용자:', { id: user.id, name: user.name, status: user.status })
 
     // 비밀번호 검증
