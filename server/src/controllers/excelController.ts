@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { validationResult } from 'express-validator'
 import { getPool } from '../config/database'
 import { processExcelFile } from '../utils/excelProcessor'
-import { clearFileCache, getFileCache, setFileCache } from '../utils/cache'
+import { clearFileCache, getCache, setCache } from '../utils/cache'
 import fs from 'fs'
 import path from 'path'
 import multer from 'multer'
@@ -184,7 +184,7 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
 
     // 캐시 확인
     const cacheKey = `excel_data_${fileId}_${page}_${limit}_${search}_${sortBy}_${sortOrder}`
-    const cachedData = await getFileCache(cacheKey)
+    const cachedData = await getCache(cacheKey)
     
     if (cachedData) {
       res.status(200).json(cachedData)
@@ -249,7 +249,7 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
     }
 
     // 캐시 저장
-    await setFileCache(cacheKey, response, 300) // 5분
+    await setCache(cacheKey, response, 'data')
 
     res.status(200).json(response)
   } catch (error) {
@@ -393,7 +393,7 @@ export const getExcelSummary = async (req: Request, res: Response): Promise<void
 
     // 캐시 확인
     const cacheKey = `excel_summary_${fileId}`
-    const cachedData = await getFileCache(cacheKey)
+    const cachedData = await getCache(cacheKey)
     
     if (cachedData) {
       res.status(200).json(cachedData)
@@ -429,7 +429,7 @@ export const getExcelSummary = async (req: Request, res: Response): Promise<void
     }
 
     // 캐시 저장
-    await setFileCache(cacheKey, response, 600) // 10분
+    await setCache(cacheKey, response, 'summary')
 
     res.status(200).json(response)
   } catch (error) {
