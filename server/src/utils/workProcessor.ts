@@ -100,10 +100,15 @@ export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted:
           [isCompleted, isCompleted ? new Date() : null, excelDataId, user.id]
         )
       } else {
-        // 새로운 상태 생성
+        // 새로운 상태 생성 (중복 방지)
         await pool.query(
           `INSERT INTO work_status (data_id, user_id, assigned_to, is_completed, completed_at)
-           VALUES ($1, $2, $3, $4, $5)`,
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (data_id, assigned_to) 
+           DO UPDATE SET 
+             is_completed = EXCLUDED.is_completed,
+             completed_at = EXCLUDED.completed_at,
+             updated_at = NOW()`,
           [excelDataId, user.id, user.id, isCompleted, isCompleted ? new Date() : null]
         )
       }
