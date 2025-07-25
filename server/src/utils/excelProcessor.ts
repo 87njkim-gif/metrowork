@@ -165,7 +165,10 @@ export const processExcelChunk = async (
     
     // 배치 ?�입 ?�행
     if (batchData.length > 0) {
-      const placeholders = batchData.map(() => '(?, ?, ?, ?, ?)').join(', ')
+      const placeholders = batchData.map((_, index) => {
+        const baseIndex = index * 5
+        return `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5})`
+      }).join(', ')
       const values = batchData.flat()
       
       await pool.query(
@@ -238,14 +241,14 @@ export const processExcelFile = async (
     const columns = analyzeColumns(headers, dataRows.slice(0, 100)) // 처음 100?�으�?분석
     
     // 컬럼 ?�보 ?�??
-    for (const column of columns) {
-      column.file_id = fileId
-      await pool.query(
-        `INSERT INTO excel_columns (file_id, column_index, column_name, column_type, is_required, is_searchable, is_sortable, display_name, description) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [column.file_id, column.column_index, column.column_name, column.column_type, column.is_required, column.is_searchable, column.is_sortable, column.display_name, column.description]
-      )
-    }
+            for (const column of columns) {
+          column.file_id = fileId
+          await pool.query(
+            `INSERT INTO excel_columns (file_id, column_index, column_name, column_type, is_required, is_searchable, is_sortable, display_name, description) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [column.file_id, column.column_index, column.column_name, column.column_type, column.is_required, column.is_searchable, column.is_sortable, column.display_name, column.description]
+          )
+        }
     
     // �?�� ?�위�??�이??처리
     let totalProcessed = 0
@@ -270,7 +273,7 @@ export const processExcelFile = async (
     
     // ?�일 처리 ?�료 ?�태 ?�데?�트
     await pool.query(
-      'UPDATE excel_files SET is_processed = TRUE, total_rows = ?, total_columns = ? WHERE id = ?',
+      'UPDATE excel_files SET is_processed = TRUE, total_rows = $1, total_columns = $2 WHERE id = $3',
       [job.totalRows, columns.length, fileId]
     )
     
