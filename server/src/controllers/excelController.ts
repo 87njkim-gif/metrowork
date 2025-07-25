@@ -214,7 +214,7 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
   try {
     const fileId = parseInt(req.params.fileId)
     const userId = req.user!.id
-    const { page = 1, limit = 50, search = '', sortBy = 'id', sortOrder = 'asc' } = req.query
+    const { page = 1, limit = 50, search = '', sortBy = 'id', sortOrder = 'asc', selectedTeam = '' } = req.query
 
     const offset = (Number(page) - 1) * Number(limit)
 
@@ -243,7 +243,7 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
     }
 
     // 캐시 확인
-    const cacheKey = `excel_data_${fileId}_${page}_${limit}_${search}_${sortBy}_${sortOrder}`
+    const cacheKey = `excel_data_${fileId}_${page}_${limit}_${search}_${sortBy}_${sortOrder}_${selectedTeam}`
     const cachedData = await getCache(cacheKey)
     
     if (cachedData) {
@@ -259,6 +259,13 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
     if (search) {
       whereClause += ` AND (row_data::text ILIKE $${paramIndex})`
       params.push(`%${search}%`)
+      paramIndex++
+    }
+
+    // 팀 필터링 추가
+    if (selectedTeam && selectedTeam !== '') {
+      whereClause += ` AND (row_data->>'팀') = $${paramIndex}`
+      params.push(selectedTeam)
       paramIndex++
     }
 
@@ -372,6 +379,13 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
         params.push(filter.value)
         paramIndex++
       })
+    }
+
+    // 팀 필터링 추가
+    if (criteria && criteria.selectedTeam) {
+      whereClause += ` AND (row_data->>'팀') = $${paramIndex}`
+      params.push(criteria.selectedTeam)
+      paramIndex++
     }
 
     // 전체 개수 조회
