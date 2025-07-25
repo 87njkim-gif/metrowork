@@ -49,7 +49,7 @@ export const toggleWorkStatus = async (
       // 새로운 상태 생성
       const result = await pool.query(
         `INSERT INTO work_status (data_id, user_id, assigned_to, is_completed, completed_at, notes)
-         VALUES ($1, $2, $2, $3, $4, $5) RETURNING id`,
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
         [excelDataId, userId, userId, isCompleted, completedAt, notes]
       )
 
@@ -103,7 +103,7 @@ export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted:
         // 새로운 상태 생성
         await pool.query(
           `INSERT INTO work_status (data_id, user_id, assigned_to, is_completed, completed_at)
-           VALUES ($1, $2, $2, $3, $4)`,
+           VALUES ($1, $2, $3, $4, $5)`,
           [excelDataId, user.id, user.id, isCompleted, isCompleted ? new Date() : null]
         )
       }
