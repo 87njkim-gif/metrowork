@@ -129,6 +129,17 @@ const initializeDatabase = async (): Promise<void> => {
       )
     `)
 
+    // work_status 테이블에 is_completed 컬럼이 없으면 추가
+    try {
+      await pool.query(`
+        ALTER TABLE work_status 
+        ADD COLUMN IF NOT EXISTS is_completed BOOLEAN DEFAULT FALSE
+      `)
+      console.log('✅ is_completed column added to work_status table')
+    } catch (error) {
+      console.log('⚠️ is_completed column already exists or error occurred:', error.message)
+    }
+
     // user_sessions 테이블 생성
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
