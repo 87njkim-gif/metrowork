@@ -38,10 +38,12 @@ export const checkWorkItem = async (req: Request, res: Response): Promise<void> 
     const { isCompleted, notes }: CheckWorkRequest = req.body
 
     // 해당 아이템 존재 여부 확인
-    const [excelData] = await pool.query(
-      'SELECT id, file_id FROM excel_data WHERE id = ?',
+    const result = await pool.query(
+      'SELECT id, file_id FROM excel_data WHERE id = $1',
       [rowId]
-    ) as any[]
+    )
+    
+    const excelData = result.rows
 
     if (excelData.length === 0) {
       res.status(404).json({
@@ -64,10 +66,12 @@ export const checkWorkItem = async (req: Request, res: Response): Promise<void> 
     }
 
     // 기존 상태 확인 (활동 로그용)
-    const [existingStatus] = await pool.query(
-      'SELECT is_completed FROM work_status WHERE excel_data_id = ? AND user_id = ?',
+    const existingStatusResult = await pool.query(
+      'SELECT is_completed FROM work_status WHERE excel_data_id = $1 AND user_id = $2',
       [rowId, userId]
-    ) as any[]
+    )
+    
+    const existingStatus = existingStatusResult.rows
 
     const oldStatus = existingStatus.length > 0 ? existingStatus[0].is_completed : null
 
