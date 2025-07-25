@@ -526,11 +526,11 @@ export const getExcelFiles = async (req: Request, res: Response): Promise<void> 
 
     const offset = (Number(page) - 1) * Number(limit)
 
-    let whereClause = 'WHERE uploaded_by = $1'
-    let params = [userId]
+    let whereClause = 'WHERE 1=1'
+    let params: any[] = []
 
     if (search) {
-      whereClause += ' AND (original_name ILIKE $2 OR description ILIKE $2)'
+      whereClause += ' AND (original_name ILIKE $1 OR description ILIKE $1)'
       params.push(`%${search}%`)
     }
 
