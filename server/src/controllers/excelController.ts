@@ -487,7 +487,7 @@ export const getExcelFiles = async (req: Request, res: Response): Promise<void> 
       data: {
         files: files.map((file: any) => ({
           ...file,
-          tags: file.tags ? JSON.parse(file.tags) : []
+          tags: file.tags ? (typeof file.tags === 'string' ? JSON.parse(file.tags) : file.tags) : []
         })),
         pagination: {
           page,

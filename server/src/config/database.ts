@@ -191,6 +191,17 @@ const initializeDatabase = async (): Promise<void> => {
       console.log('⚠️ file_type column length extension failed:', error.message)
     }
 
+    // excel_files 테이블에 processing_status 컬럼 추가
+    try {
+      await pool.query(`
+        ALTER TABLE excel_files 
+        ADD COLUMN IF NOT EXISTS processing_status VARCHAR(50) DEFAULT 'pending'
+      `)
+      console.log('✅ processing_status column added to excel_files table')
+    } catch (error) {
+      console.log('⚠️ processing_status column already exists or error occurred:', error.message)
+    }
+
     // user_sessions 테이블 생성
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
