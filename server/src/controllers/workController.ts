@@ -360,6 +360,17 @@ export const getUserWorkStatus = async (req: Request, res: Response): Promise<vo
     const stats = totalStatsResult.rows[0]
     const completionRate = stats.total_items > 0 ? (stats.completed_items / stats.total_items) * 100 : 0
 
+    // 오늘 완료된 업무 조회
+    const todayWorkResult = await pool.query(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN is_completed = TRUE THEN 1 END) as completed
+      FROM work_status 
+      WHERE user_id = $1 AND DATE(created_at) = $2
+    `, [userId, todayDate])
+
+    const todayWork = todayWorkResult.rows[0]
+
     res.status(200).json({
       success: true,
       data: {
@@ -369,7 +380,7 @@ export const getUserWorkStatus = async (req: Request, res: Response): Promise<vo
         pendingItems: stats.pending_items,
         completionRate: Math.round(completionRate * 100) / 100,
         todayCompleted: todayWork.total,
-        recentWork: todayWork.workStatuses
+        recentWork: []
       }
     })
   } catch (error) {

@@ -170,6 +170,27 @@ const initializeDatabase = async (): Promise<void> => {
       console.log('⚠️ file_id column already exists or error occurred:', error.message)
     }
 
+    // excel_files 테이블의 컬럼 길이 확장
+    try {
+      await pool.query(`
+        ALTER TABLE excel_files 
+        ALTER COLUMN original_name TYPE VARCHAR(500)
+      `)
+      console.log('✅ original_name column length extended to 500')
+    } catch (error) {
+      console.log('⚠️ original_name column length extension failed:', error.message)
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE excel_files 
+        ALTER COLUMN file_type TYPE VARCHAR(100)
+      `)
+      console.log('✅ file_type column length extended to 100')
+    } catch (error) {
+      console.log('⚠️ file_type column length extension failed:', error.message)
+    }
+
     // user_sessions 테이블 생성
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
