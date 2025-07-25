@@ -75,7 +75,10 @@ const ExcelSearchPage: React.FC = () => {
       const teamColName = columns[8].column_name;
       // 이스케이프된 따옴표 제거하고 깔끔한 값만 전송
       const cleanTeamValue = selectedTeam.replace(/^"|"$/g, '').replace(/^\\"|\\"$/g, '');
-      searchParams.columnFilters = { [teamColName]: cleanTeamValue };
+      searchParams.criteria = {
+        selectedTeam: cleanTeamValue,
+        teamColumnName: teamColName
+      };
       console.log('팀 필터링 적용:', { selectedTeam, cleanTeamValue, teamColName, searchParams });
     }
     
