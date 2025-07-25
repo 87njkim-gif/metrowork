@@ -331,10 +331,10 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
 
     const offset = (Number(page) - 1) * Number(limit)
 
-    // 파일 권한 확인
+    // 파일 존재 확인
     const fileResult = await pool.query(
-      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
-      [fileId, userId]
+      'SELECT * FROM excel_files WHERE id = $1',
+      [fileId]
     )
 
     if (fileResult.rows.length === 0) {
@@ -427,10 +427,10 @@ export const getExcelSummary = async (req: Request, res: Response): Promise<void
     const fileId = parseInt(req.params.fileId)
     const userId = req.user!.id
 
-    // 파일 권한 확인
+    // 파일 존재 확인
     const fileResult = await pool.query(
-      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
-      [fileId, userId]
+      'SELECT * FROM excel_files WHERE id = $1',
+      [fileId]
     )
 
     if (fileResult.rows.length === 0) {
