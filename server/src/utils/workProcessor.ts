@@ -124,7 +124,7 @@ export const canUncompleteWork = async (excelDataId: number, userId: number): Pr
   try {
     // 해당 작업에 대한 완료된 사용자 조회
     const completedUsers = await pool.query(
-      'SELECT user_id FROM work_status WHERE excel_data_id = $1 AND is_completed = TRUE',
+      'SELECT user_id FROM work_status WHERE data_id = $1 AND is_completed = TRUE',
       [excelDataId]
     )
 
@@ -198,7 +198,7 @@ export const getGlobalWorkStats = async (): Promise<any[]> => {
         MAX(ws.completed_at) as last_completed_at
       FROM excel_data ed
       JOIN excel_files ef ON ed.file_id = ef.id
-      LEFT JOIN work_status ws ON ed.id = ws.excel_data_id
+      LEFT JOIN work_status ws ON ed.id = ws.data_id
       GROUP BY ed.id, ed.row_index, ed.row_data, ef.original_name
       ORDER BY completion_rate DESC, last_completed_at DESC
     `)
