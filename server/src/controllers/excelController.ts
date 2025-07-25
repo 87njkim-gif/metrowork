@@ -335,7 +335,7 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
     const userId = req.user!.id
     const { page = 1, limit = 50 } = req.query
     const { criteria = {} } = req.body
-    const { teamColumnName = '설치팀' } = req.query
+    const teamColumnName = criteria.teamColumnName || '설치팀'
 
     const offset = (Number(page) - 1) * Number(limit)
 
@@ -384,9 +384,11 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
 
     // 팀 필터링 추가
     if (criteria && criteria.selectedTeam) {
+      console.log('팀 필터링 적용:', { selectedTeam: criteria.selectedTeam, teamColumnName, whereClause })
       whereClause += ` AND (row_data->>'${teamColumnName}') = $${paramIndex}`
       params.push(criteria.selectedTeam)
       paramIndex++
+      console.log('팀 필터링 후:', { whereClause, params })
     }
 
     // 전체 개수 조회
