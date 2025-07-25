@@ -197,25 +197,29 @@ const createIndexes = async (): Promise<void> => {
     await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_data_row_index ON excel_data(row_index)')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_data_is_valid ON excel_data(is_valid)')
 
-    // work_status 테이블이 존재하는지 확인 후 인덱스 생성
-    const tableExistsResult = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'work_status'
-      )
-    `)
-    
-    if (tableExistsResult.rows[0].exists) {
-      // work_status 테이블 인덱스
-      await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_excel_data_id ON work_status(excel_data_id)')
-      await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_file_id ON work_status(file_id)')
-      await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_user_id ON work_status(user_id)')
-      await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_is_completed ON work_status(is_completed)')
-      await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_completed_at ON work_status(completed_at)')
-      console.log('✅ work_status table indexes created')
-    } else {
-      console.log('⚠️ work_status table does not exist, skipping indexes')
+    // work_status 테이블 인덱스 (안전하게 처리)
+    try {
+      const tableExistsResult = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'work_status'
+        )
+      `)
+      
+      if (tableExistsResult.rows[0].exists) {
+        // work_status 테이블 인덱스
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_excel_data_id ON work_status(excel_data_id)')
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_file_id ON work_status(file_id)')
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_user_id ON work_status(user_id)')
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_is_completed ON work_status(is_completed)')
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_completed_at ON work_status(completed_at)')
+        console.log('✅ work_status table indexes created')
+      } else {
+        console.log('⚠️ work_status table does not exist, skipping indexes')
+      }
+    } catch (workStatusError) {
+      console.log('⚠️ work_status table index creation failed, skipping:', workStatusError.message)
     }
 
     // user_sessions 테이블 인덱스
