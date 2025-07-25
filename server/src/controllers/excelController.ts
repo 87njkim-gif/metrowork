@@ -257,7 +257,7 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
     let paramIndex = 2
 
     if (search) {
-      whereClause += ` AND (data::text ILIKE $${paramIndex})`
+      whereClause += ` AND (row_data::text ILIKE $${paramIndex})`
       params.push(`%${search}%`)
       paramIndex++
     }
@@ -361,14 +361,14 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
     let paramIndex = 2
 
     if (criteria.search) {
-      whereClause += ` AND (data::text ILIKE $${paramIndex})`
+      whereClause += ` AND (row_data::text ILIKE $${paramIndex})`
       params.push(`%${criteria.search}%`)
       paramIndex++
     }
 
     if (criteria.filters && criteria.filters.length > 0) {
       criteria.filters.forEach((filter: any) => {
-        whereClause += ` AND (data->>'${filter.column}')::${filter.type} ${filter.operator} $${paramIndex}`
+        whereClause += ` AND (row_data->>'${filter.column}')::${filter.type} ${filter.operator} $${paramIndex}`
         params.push(filter.value)
         paramIndex++
       })
@@ -393,7 +393,7 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
 
     const data = dataResult.rows.map((row: any) => ({
       ...row,
-      data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
+      data: typeof row.row_data === 'string' ? JSON.parse(row.row_data) : row.row_data
     }))
 
     res.status(200).json({
@@ -647,11 +647,11 @@ export const getTeamList = async (req: Request, res: Response): Promise<void> =>
 
     // 팀 목록 조회 (중복 제거)
     const teamsResult = await pool.query(
-      `SELECT DISTINCT data->>'${columnName}' as team_name 
+      `SELECT DISTINCT row_data->>'${columnName}' as team_name 
        FROM excel_data 
        WHERE file_id = $1 
-       AND data->>'${columnName}' IS NOT NULL 
-       AND data->>'${columnName}' != ''
+       AND row_data->>'${columnName}' IS NOT NULL 
+       AND row_data->>'${columnName}' != ''
        ORDER BY team_name`,
       [fileId]
     )
