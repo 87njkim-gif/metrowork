@@ -370,14 +370,24 @@ export const logWorkActivity = async (
   notes?: string
 ): Promise<void> => {
   try {
-    await pool.query(
-      `INSERT INTO work_history (excel_data_id, user_id, action, old_status, new_status, notes)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [excelDataId, userId, action, oldStatus, newStatus, notes]
+    // work_status_id 조회
+    const workStatusResult = await pool.query(
+      'SELECT id FROM work_status WHERE data_id = $1 AND user_id = $2',
+      [excelDataId, userId]
     )
+    
+    if (workStatusResult.rows.length > 0) {
+      const workStatusId = workStatusResult.rows[0].id
+      
+      await pool.query(
+        `INSERT INTO work_history (work_status_id, user_id, action, old_status, new_status, comment)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [workStatusId, userId, action, oldStatus, newStatus, notes]
+      )
+    }
   } catch (error) {
     console.error('Log work activity error:', error)
-    throw error
+    // 로그 기록 실패는 전체 프로세스를 중단하지 않도록 함
   }
 }
 
