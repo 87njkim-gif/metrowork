@@ -22,7 +22,7 @@ export const toggleWorkStatus = async (
   try {
     // 기존 상태 확인
     const existing = await pool.query(
-      'SELECT * FROM work_status WHERE excel_data_id = $1 AND user_id = $2',
+      'SELECT * FROM work_status WHERE data_id = $1 AND user_id = $2',
       [excelDataId, userId]
     )
 
@@ -34,13 +34,13 @@ export const toggleWorkStatus = async (
       await pool.query(
         `UPDATE work_status 
          SET is_completed = $1, completed_at = $2, notes = $3, updated_at = NOW()
-         WHERE excel_data_id = $4 AND user_id = $5`,
+         WHERE data_id = $4 AND user_id = $5`,
         [isCompleted, completedAt, notes, excelDataId, userId]
       )
 
       // 업데이트된 상태 조회
       const updated = await pool.query(
-        'SELECT * FROM work_status WHERE excel_data_id = $1 AND user_id = $2',
+        'SELECT * FROM work_status WHERE data_id = $1 AND user_id = $2',
         [excelDataId, userId]
       )
 
@@ -48,7 +48,7 @@ export const toggleWorkStatus = async (
     } else {
       // 새로운 상태 생성
       const result = await pool.query(
-        `INSERT INTO work_status (excel_data_id, user_id, is_completed, completed_at, notes)
+        `INSERT INTO work_status (data_id, user_id, is_completed, completed_at, notes)
          VALUES ($1, $2, $3, $4, $5) RETURNING id`,
         [excelDataId, userId, isCompleted, completedAt, notes]
       )
