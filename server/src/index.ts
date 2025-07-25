@@ -23,13 +23,13 @@ import duplicateRoutes from './routes/duplicate'
 import passwordResetRoutes from './routes/passwordReset'
 import smsAuthRoutes from './routes/smsAuth'
 import workCheckRoutes from './routes/workCheck'
-// import checklistRoutes from './routes/checklist' // ?? œ
+// import checklistRoutes from './routes/checklist' // ??ï¿½ï¿½
 
 // Middleware
-// import { notFound } from './middleware/notFound' // ?? œ
+// import { notFound } from './middleware/notFound' // ??ï¿½ï¿½
 
 // Database
-import { connectDB } from './config/database'
+import { getPool, initializeDatabase, createIndexes, insertInitialData } from './config/database'
 import { initializeSocketServer } from './socket/socketServer'
 
 // Load environment variables
@@ -55,7 +55,7 @@ app.use(helmet({
   },
 }))
 
-// CORS ?¤ì •
+// CORS ?ï¿½ì •
 app.use(cors({
   origin: [
     process.env.CLIENT_URL || 'http://localhost:3000',
@@ -63,15 +63,19 @@ app.use(cors({
     'https://metrowork.onrender.com'
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'Content-Range']
 }))
+
+// Trust proxy for rate limiting
+app.set('trust proxy', 1)
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10000, // ê°œë°œ ì¤‘ì—???‰ë„‰?˜ê²Œ
-  message: '?ˆë¬´ ë§Žì? ?”ì²­??ë°œìƒ?ˆìŠµ?ˆë‹¤. ? ì‹œ ???¤ì‹œ ?œë„?´ì£¼?¸ìš”.',
+  max: 10000, // ê°œë°œ ì¤‘ì—???ï¿½ë„‰?ï¿½ê²Œ
+  message: '?ï¿½ë¬´ ë§Žï¿½? ?ï¿½ì²­??ë°œìƒ?ï¿½ìŠµ?ï¿½ë‹¤. ?ï¿½ì‹œ ???ï¿½ì‹œ ?ï¿½ë„?ï¿½ì£¼?ï¿½ìš”.',
 })
 app.use('/api/', limiter)
 
@@ -103,7 +107,7 @@ app.use('/api/auth', duplicateRoutes)
 app.use('/api/auth', passwordResetRoutes)
 app.use('/api/auth', smsAuthRoutes)
 app.use('/api/work-check', workCheckRoutes)
-// app.use('/api/checklist', checklistRoutes) // ?? œ
+// app.use('/api/checklist', checklistRoutes) // ??ï¿½ï¿½
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -124,9 +128,9 @@ const startServer = async () => {
     
     server.listen(PORT, () => {
       console.log(`?? Server running on port ${PORT}`)
-      console.log(`?“± Environment: ${process.env.NODE_ENV || 'development'}`)
-      console.log(`?”— API URL: http://localhost:${PORT}/api`)
-      console.log(`?”Œ Socket.IO enabled for real-time features`)
+      console.log(`?ï¿½ï¿½ Environment: ${process.env.NODE_ENV || 'development'}`)
+      console.log(`?ï¿½ï¿½ API URL: http://localhost:${PORT}/api`)
+      console.log(`?ï¿½ï¿½ Socket.IO enabled for real-time features`)
     })
   } catch (error) {
     console.error('??Failed to start server:', error)

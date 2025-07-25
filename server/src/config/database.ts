@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+import { Pool, PoolConfig } from 'pg'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -11,47 +11,31 @@ console.log('DB_USER:', process.env.DB_USER)
 console.log('DB_NAME:', process.env.DB_NAME)
 console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET')
 
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'metrowork_db',
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-}
+let pool: Pool
 
-console.log('?�� Final DB Config:', {
-  host: dbConfig.host,
-  port: dbConfig.port,
-  user: dbConfig.user,
-  database: dbConfig.database,
-  password: dbConfig.password ? '***SET***' : 'NOT SET'
-})
+const getPool = (): Pool => {
+  if (!pool) {
+    const dbConfig: PoolConfig = {
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT || '5432'),
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    }
 
-// Create connection pool
-const pool = new Pool(dbConfig)
-
-// Test database connection
-export const connectDB = async (): Promise<void> => {
-  try {
-    const client = await pool.connect()
-    console.log('??PostgreSQL Database connected successfully')
-    client.release()
-    
-    // Initialize database tables
-    await initializeTables()
-  } catch (error) {
-    console.error('??Database connection failed:', error)
-    throw error
+    pool = new Pool(dbConfig)
   }
+  return pool
 }
 
-// Initialize database tables
-const initializeTables = async (): Promise<void> => {
+const initializeDatabase = async (): Promise<void> => {
+  const pool = getPool()
+
   try {
-    // Users table
+    // 사용자 테이블 생성
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -75,7 +59,7 @@ const initializeTables = async (): Promise<void> => {
       )
     `)
 
-    // Excel files table
+    // 엑셀 파일 테이블 생성
     await pool.query(`
       CREATE TABLE IF NOT EXISTS excel_files (
         id SERIAL PRIMARY KEY,
@@ -96,7 +80,7 @@ const initializeTables = async (): Promise<void> => {
       )
     `)
 
-    // Excel columns table
+    // 엑셀 컬럼 테이블 생성
     await pool.query(`
       CREATE TABLE IF NOT EXISTS excel_columns (
         id SERIAL PRIMARY KEY,
@@ -114,160 +98,164 @@ const initializeTables = async (): Promise<void> => {
       )
     `)
 
-    // Excel data table
+    // 엑셀 데이터 테이블 생성
     await pool.query(`
       CREATE TABLE IF NOT EXISTS excel_data (
         id SERIAL PRIMARY KEY,
         file_id INTEGER NOT NULL,
         row_index INTEGER NOT NULL,
-        row_data JSONB NOT NULL,
+        data JSONB NOT NULL,
         is_valid BOOLEAN DEFAULT TRUE,
         validation_errors JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(file_id, row_index)
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
 
-    // Work status table
+    // work_status 테이블 생성 (PostgreSQL용)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS work_status (
         id SERIAL PRIMARY KEY,
-        data_id INTEGER NOT NULL,
-        assigned_to INTEGER NOT NULL,
-        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled', 'on_hold')),
-        priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
-        due_date DATE,
-        started_at TIMESTAMP,
+        excel_data_id INTEGER NOT NULL,
+        file_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        is_completed BOOLEAN DEFAULT FALSE,
         completed_at TIMESTAMP,
-        cancelled_at TIMESTAMP,
-        cancelled_by INTEGER,
-        cancel_reason TEXT,
+        completed_by INTEGER,
         notes TEXT,
-        processing_time INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(data_id, assigned_to)
+        UNIQUE(excel_data_id, user_id)
       )
     `)
 
-    // User date settings table
+    // user_sessions 테이블 생성
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_date_settings (
+      CREATE TABLE IF NOT EXISTS user_sessions (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
-        custom_date DATE NOT NULL,
+        refresh_token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
         is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, custom_date)
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
 
-    // Work history table
+    // work_history 테이블 생성
     await pool.query(`
       CREATE TABLE IF NOT EXISTS work_history (
         id SERIAL PRIMARY KEY,
         work_status_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
-        action VARCHAR(20) NOT NULL CHECK (action IN ('created', 'assigned', 'started', 'completed', 'cancelled', 'updated', 'commented')),
-        old_status VARCHAR(20),
-        new_status VARCHAR(20),
-        old_priority VARCHAR(20),
-        new_priority VARCHAR(20),
-        old_due_date DATE,
-        new_due_date DATE,
+        action VARCHAR(20) NOT NULL CHECK (action IN ('created', 'assigned', 'started', 'completed', 'uncompleted', 'updated', 'commented')),
+        old_status BOOLEAN,
+        new_status BOOLEAN,
         comment TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
 
-    // User sessions table
+    // user_date_settings 테이블 생성
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_sessions (
+      CREATE TABLE IF NOT EXISTS user_date_settings (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
-        token VARCHAR(500) NOT NULL,
-        refresh_token VARCHAR(500),
-        device_info JSONB,
-        ip_address VARCHAR(45),
-        user_agent TEXT,
-        expires_at TIMESTAMP NOT NULL,
-        is_active BOOLEAN DEFAULT TRUE,
+        today_date DATE NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id)
       )
     `)
 
-    // Create indexes
-    await createIndexes()
-
-    // Insert initial admin user
-    await insertInitialData()
-
-    console.log('??Database tables initialized successfully')
+    console.log('✅ Database tables initialized successfully')
   } catch (error) {
-    console.error('??Failed to initialize database tables:', error)
+    console.error('❌ Database initialization error:', error)
     throw error
   }
 }
 
-// Create indexes for performance
 const createIndexes = async (): Promise<void> => {
+  const pool = getPool()
+
   try {
+    // 사용자 테이블 인덱스
     await pool.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)')
+
+    // 엑셀 파일 테이블 인덱스
     await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_files_uploaded_by ON excel_files(uploaded_by)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_files_created_at ON excel_files(created_at)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_files_is_processed ON excel_files(is_processed)')
+
+    // 엑셀 컬럼 테이블 인덱스
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_columns_file_id ON excel_columns(file_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_columns_column_index ON excel_columns(column_index)')
+
+    // 엑셀 데이터 테이블 인덱스
     await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_data_file_id ON excel_data(file_id)')
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_assigned_to ON work_status(assigned_to)')
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_status ON work_status(status)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_data_row_index ON excel_data(row_index)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_excel_data_is_valid ON excel_data(is_valid)')
+
+    // work_status 테이블 인덱스
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_excel_data_id ON work_status(excel_data_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_file_id ON work_status(file_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_user_id ON work_status(user_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_is_completed ON work_status(is_completed)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_status_completed_at ON work_status(completed_at)')
+
+    // user_sessions 테이블 인덱스
     await pool.query('CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)')
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token)')
-    
-    console.log('??Database indexes created successfully')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_user_sessions_refresh_token ON user_sessions(refresh_token)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at)')
+
+    // work_history 테이블 인덱스
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_history_work_status_id ON work_history(work_status_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_history_user_id ON work_history(user_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_history_action ON work_history(action)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_work_history_created_at ON work_history(created_at)')
+
+    console.log('✅ Database indexes created successfully')
   } catch (error) {
-    console.error('??Failed to create indexes:', error)
+    console.error('❌ Database index creation error:', error)
     throw error
   }
 }
 
-// Insert initial data
 const insertInitialData = async (): Promise<void> => {
+  const pool = getPool()
+
   try {
-    // Check if admin user already exists
-    const adminResult = await pool.query('SELECT id FROM users WHERE email = $1', ['admin@metrowork.com'])
+    // 관리자 계정이 있는지 확인
+    const adminResult = await pool.query('SELECT id FROM users WHERE name = $1', ['시스템 관리자'])
     
     if (adminResult.rows.length === 0) {
-      // Insert admin user (password: admin123)
+      // 관리자 계정 생성
+      const bcrypt = require('bcrypt')
+      const hashedPassword = await bcrypt.hash('ADMIN123', 10)
+      
       await pool.query(`
-        INSERT INTO users (email, password, name, role, status, department, position, approved_at) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      `, ['admin@metrowork.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2O', '시스템 관리자', 'admin', 'approved', 'IT', '시스템 관리자'])
+        INSERT INTO users (email, password, name, role, status, department, position, approved_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        'admin@metrowork.com',
+        hashedPassword,
+        '시스템 관리자',
+        'admin',
+        'approved',
+        'IT팀',
+        '시스템 관리자',
+        new Date()
+      ])
       
-      // Set approved_by to self
-      await pool.query('UPDATE users SET approved_by = id WHERE email = $1', ['admin@metrowork.com'])
-      
-      console.log('??Initial admin user created successfully')
+      console.log('✅ Initial admin user created successfully')
+    } else {
+      console.log('✅ Admin user already exists')
     }
   } catch (error) {
-    console.error('??Failed to insert initial data:', error)
+    console.error('❌ Initial data insertion error:', error)
     throw error
   }
 }
 
-// Get database pool
-export const getPool = () => pool
-
-// Close database connection
-export const closeDB = async (): Promise<void> => {
-  try {
-    await pool.end()
-    console.log('??Database connection closed')
-  } catch (error) {
-    console.error('??Error closing database connection:', error)
-    throw error
-  }
-}
-
-export default pool 
+export { getPool, initializeDatabase, createIndexes, insertInitialData } 
