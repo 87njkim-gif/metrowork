@@ -1,12 +1,13 @@
 import { Request, Response } from 'express'
 import { validationResult } from 'express-validator'
 import { getPool } from '../config/database'
-import { processExcelFile } from '../utils/excelProcessor'
+import { processExcelFile, analyzeColumns, processExcelChunk } from '../utils/excelProcessor'
 import { clearFileCache, getCache, setCache } from '../utils/cache'
 import fs from 'fs'
 import path from 'path'
 import multer from 'multer'
 import { fileURLToPath } from 'url'
+import * as XLSX from 'xlsx'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -93,10 +94,65 @@ export const uploadExcel = async (req: Request, res: Response): Promise<void> =>
 
       const fileId = result.rows[0].id
 
-      // 백그라운드에서 파일 처리
-      processExcelFile(fileId, file.path).catch(error => {
+      // 파일을 즉시 메모리로 읽어서 처리
+      try {
+        const buffer = fs.readFileSync(file.path)
+        const workbook = XLSX.read(buffer, { type: 'buffer' })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        
+        // JSON으로 변환
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+        
+        if (jsonData.length === 0) {
+          throw new Error('빈 파일입니다')
+        }
+        
+        const headers = jsonData[0] as string[]
+        const dataRows = jsonData.slice(1) as any[][]
+        
+        // 컬럼 정보 분석 및 저장
+        const columns = analyzeColumns(headers, dataRows.slice(0, 100))
+        
+        for (const column of columns) {
+          column.file_id = fileId
+          await pool.query(
+            `INSERT INTO excel_columns (file_id, column_index, column_name, column_type, is_required, is_searchable, is_sortable, display_name, description) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [column.file_id, column.column_index, column.column_name, column.column_type, column.is_required, column.is_searchable, column.is_sortable, column.display_name, column.description]
+          )
+        }
+        
+        // 데이터 처리
+        let totalProcessed = 0
+        let totalErrors = 0
+        const chunkSize = 1000
+        
+        for (let i = 0; i < dataRows.length; i += chunkSize) {
+          const chunk = dataRows.slice(i, i + chunkSize)
+          const result = await processExcelChunk(fileId, chunk, columns, i + 1, chunkSize)
+          
+          totalProcessed += result.processed
+          totalErrors += result.errors
+        }
+        
+        // 파일 처리 완료 상태 업데이트
+        await pool.query(
+          'UPDATE excel_files SET is_processed = TRUE, total_rows = $1, total_columns = $2 WHERE id = $3',
+          [dataRows.length, columns.length, fileId]
+        )
+        
+        // 캐시 정리
+        await clearFileCache(fileId)
+        
+      } catch (error) {
         console.error('File processing error:', error)
-      })
+        // 처리 실패 시 상태 업데이트
+        await pool.query(
+          'UPDATE excel_files SET is_processed = FALSE, processing_status = $1 WHERE id = $2',
+          ['failed', fileId]
+        )
+      }
 
       res.status(201).json({
         success: true,
@@ -162,10 +218,10 @@ export const getExcelData = async (req: Request, res: Response): Promise<void> =
 
     const offset = (Number(page) - 1) * Number(limit)
 
-    // 파일 권한 확인
+    // 파일 존재 확인
     const fileResult = await pool.query(
-      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
-      [fileId, userId]
+      'SELECT * FROM excel_files WHERE id = $1',
+      [fileId]
     )
 
     if (fileResult.rows.length === 0) {
@@ -559,10 +615,10 @@ export const getTeamList = async (req: Request, res: Response): Promise<void> =>
     const { columnIndex = 0 } = req.query
     const userId = req.user!.id
 
-    // 파일 권한 확인
+    // 파일 존재 확인
     const fileResult = await pool.query(
-      'SELECT * FROM excel_files WHERE id = $1 AND uploaded_by = $2',
-      [fileId, userId]
+      'SELECT * FROM excel_files WHERE id = $1',
+      [fileId]
     )
 
     if (fileResult.rows.length === 0) {

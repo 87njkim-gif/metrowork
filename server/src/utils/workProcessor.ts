@@ -12,7 +12,7 @@ import {
 
 const pool = getPool()
 
-// ?��? ?�이????체크/?�제 (?�로???�스??
+// 작업 상태 토글/체크 (프로덕션용)
 export const toggleWorkStatus = async (
   excelDataId: number,
   userId: number,
@@ -20,51 +20,51 @@ export const toggleWorkStatus = async (
   notes?: string
 ): Promise<WorkStatus> => {
   try {
-    // 기존 ?�태 ?�인
-    const [existing] = await pool.query(
-      'SELECT * FROM work_status WHERE excel_data_id = ? AND user_id = ?',
+    // 기존 상태 확인
+    const existing = await pool.query(
+      'SELECT * FROM work_status WHERE excel_data_id = $1 AND user_id = $2',
       [excelDataId, userId]
-    ) as any[]
+    )
 
     const completedAt = isCompleted ? new Date() : null
     let workStatus: WorkStatus
 
-    if (existing.length > 0) {
-      // 기존 ?�태 ?�데?�트
+    if (existing.rows.length > 0) {
+      // 기존 상태 업데이트
       await pool.query(
         `UPDATE work_status 
-         SET is_completed = ?, completed_at = ?, notes = ?, updated_at = NOW()
-         WHERE excel_data_id = ? AND user_id = ?`,
+         SET is_completed = $1, completed_at = $2, notes = $3, updated_at = NOW()
+         WHERE excel_data_id = $4 AND user_id = $5`,
         [isCompleted, completedAt, notes, excelDataId, userId]
       )
 
-      // ?�데?�트???�태 조회
-      const [updated] = await pool.query(
-        'SELECT * FROM work_status WHERE excel_data_id = ? AND user_id = ?',
+      // 업데이트된 상태 조회
+      const updated = await pool.query(
+        'SELECT * FROM work_status WHERE excel_data_id = $1 AND user_id = $2',
         [excelDataId, userId]
-      ) as any[]
+      )
 
-      workStatus = updated[0] as WorkStatus
+      workStatus = updated.rows[0] as WorkStatus
     } else {
-      // ?�로???�태 ?�성
-      const [result] = await pool.query(
+      // 새로운 상태 생성
+      const result = await pool.query(
         `INSERT INTO work_status (excel_data_id, user_id, is_completed, completed_at, notes)
-         VALUES (?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
         [excelDataId, userId, isCompleted, completedAt, notes]
-      ) as any[]
+      )
 
-      const workStatusId = result.insertId
+      const workStatusId = result.rows[0].id
 
-      // ?�성???�태 조회
-      const [newStatus] = await pool.query(
-        'SELECT * FROM work_status WHERE id = ?',
+      // 생성된 상태 조회
+      const newStatus = await pool.query(
+        'SELECT * FROM work_status WHERE id = $1',
         [workStatusId]
-      ) as any[]
+      )
 
-      workStatus = newStatus[0] as WorkStatus
+      workStatus = newStatus.rows[0] as WorkStatus
     }
 
-    // ?�력 로그 기록
+    // 활동 로그 기록
     const action = isCompleted ? 'completed' : 'uncompleted'
     await logWorkActivity(excelDataId, userId, action, !isCompleted, isCompleted, notes)
 
@@ -75,34 +75,35 @@ export const toggleWorkStatus = async (
   }
 }
 
-// 모든 ?�용?�에�??�무 ?�료 ?�태 ?�기??
+// 모든 사용자에 대한 작업 상태 동기화
 export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted: boolean): Promise<void> => {
   try {
-    // 모든 ?�인???�용??조회
-    const [users] = await pool.query(
-      'SELECT id FROM users WHERE status = "approved" AND role = "user"'
-    ) as any[]
+    // 모든 사용자 조회
+    const users = await pool.query(
+      'SELECT id FROM users WHERE status = $1 AND role = $2',
+      ['approved', 'user']
+    )
 
-    // �??�용?�에�??�무 ?�태 ?�기??
-    for (const user of users) {
-      const [existing] = await pool.query(
-        'SELECT id FROM work_status WHERE excel_data_id = ? AND user_id = ?',
+    // 각 사용자에 대한 작업 상태 동기화
+    for (const user of users.rows) {
+      const existing = await pool.query(
+        'SELECT id FROM work_status WHERE excel_data_id = $1 AND user_id = $2',
         [excelDataId, user.id]
-      ) as any[]
+      )
 
-      if (existing.length > 0) {
-        // 기존 ?�태 ?�데?�트
+      if (existing.rows.length > 0) {
+        // 기존 상태 업데이트
         await pool.query(
           `UPDATE work_status 
-           SET is_completed = ?, completed_at = ?, updated_at = NOW()
-           WHERE excel_data_id = ? AND user_id = ?`,
+           SET is_completed = $1, completed_at = $2, updated_at = NOW()
+           WHERE excel_data_id = $3 AND user_id = $4`,
           [isCompleted, isCompleted ? new Date() : null, excelDataId, user.id]
         )
       } else {
-        // ?�로???�태 ?�성
+        // 새로운 상태 생성
         await pool.query(
           `INSERT INTO work_status (excel_data_id, user_id, is_completed, completed_at)
-           VALUES (?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4)`,
           [excelDataId, user.id, isCompleted, isCompleted ? new Date() : null]
         )
       }
@@ -113,17 +114,17 @@ export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted:
   }
 }
 
-// ?�무 ?�제 권한 ?�인
+// 작업 상태 취소 권한 확인
 export const canUncompleteWork = async (excelDataId: number, userId: number): Promise<boolean> => {
   try {
-    // ?�당 ?�무�??�료???�용??조회
-    const [completedUsers] = await pool.query(
-      'SELECT user_id FROM work_status WHERE excel_data_id = ? AND is_completed = TRUE',
+    // 해당 작업에 대한 완료된 사용자 조회
+    const completedUsers = await pool.query(
+      'SELECT user_id FROM work_status WHERE excel_data_id = $1 AND is_completed = TRUE',
       [excelDataId]
-    ) as any[]
+    )
 
-    // ?�재 ?�용?��? ?�료???�무?��? ?�인
-    const userCompleted = completedUsers.some((user: any) => user.user_id === userId)
+    // 현재 사용자가 완료된 사용자 중에 있는지 확인
+    const userCompleted = completedUsers.rows.some((user: any) => user.user_id === userId)
     
     return userCompleted
   } catch (error) {
@@ -132,10 +133,10 @@ export const canUncompleteWork = async (excelDataId: number, userId: number): Pr
   }
 }
 
-// ?�원�??�무 ?�계 조회
+// 사용자별 작업 통계 조회
 export const getUserWorkStats = async (): Promise<UserWorkStats[]> => {
   try {
-    const [stats] = await pool.query(`
+    const stats = await pool.query(`
       SELECT 
         u.id as user_id,
         u.name as user_name,
@@ -151,12 +152,12 @@ export const getUserWorkStats = async (): Promise<UserWorkStats[]> => {
         MAX(ws.completed_at) as last_completed_at
       FROM users u
       LEFT JOIN work_status ws ON u.id = ws.user_id
-      WHERE u.role = 'user' AND u.status = 'approved'
+      WHERE u.role = $1 AND u.status = $2
       GROUP BY u.id, u.name, u.email, u.department
       ORDER BY completed_count DESC
-    `) as any[]
+    `, ['user', 'approved'])
 
-    return stats.map((stat: any) => ({
+    return stats.rows.map((stat: any) => ({
       user_id: stat.user_id,
       user_name: stat.user_name,
       user_email: stat.user_email,
@@ -173,10 +174,10 @@ export const getUserWorkStats = async (): Promise<UserWorkStats[]> => {
   }
 }
 
-// ?�역 ?�무 ?�황 조회
+// 전체 작업 통계 조회
 export const getGlobalWorkStats = async (): Promise<any[]> => {
   try {
-    const [stats] = await pool.query(`
+    const stats = await pool.query(`
       SELECT 
         ed.id as excel_data_id,
         ed.row_index,
@@ -195,16 +196,16 @@ export const getGlobalWorkStats = async (): Promise<any[]> => {
       LEFT JOIN work_status ws ON ed.id = ws.excel_data_id
       GROUP BY ed.id, ed.row_index, ed.row_data, ef.original_name
       ORDER BY completion_rate DESC, last_completed_at DESC
-    `) as any[]
+    `)
 
-    return stats
+    return stats.rows
   } catch (error) {
     console.error('Get global work stats error:', error)
     throw error
   }
 }
 
-// ?�료???�무 목록 조회 (기존 ?�수 ?��?)
+// 완료된 작업 목록 조회 (기존 페이지 기반)
 export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
   workStatuses: WorkStatusWithData[]
   total: number
@@ -224,41 +225,41 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
     let whereConditions = ['ws.is_completed = TRUE']
     const params: any[] = []
 
-    // ?�짜 ?�터
+    // 시작 날짜
     if (query.startDate) {
-      whereConditions.push('DATE(ws.completed_at) >= ?')
+      whereConditions.push(`DATE(ws.completed_at) >= $${params.length + 1}`)
       params.push(query.startDate)
     }
     if (query.endDate) {
-      whereConditions.push('DATE(ws.completed_at) <= ?')
+      whereConditions.push(`DATE(ws.completed_at) <= $${params.length + 1}`)
       params.push(query.endDate)
     }
 
-    // ?�용???�터
+    // 사용자 필터
     if (query.userId) {
-      whereConditions.push('ws.user_id = ?')
+      whereConditions.push(`ws.user_id = $${params.length + 1}`)
       params.push(query.userId)
     }
 
-    // ?�일 ?�터
+    // 파일 필터
     if (query.fileId) {
-      whereConditions.push('ed.file_id = ?')
+      whereConditions.push(`ed.file_id = $${params.length + 1}`)
       params.push(query.fileId)
     }
 
-    // 검?�어 ?�터
+    // 검색어 필터
     if (query.search) {
       whereConditions.push(`(
-        JSON_SEARCH(ed.row_data, 'one', ?, null, '$.*') IS NOT NULL OR
-        u.name LIKE ? OR
-        ef.original_name LIKE ?
+        ed.row_data::text ILIKE $${params.length + 1} OR
+        u.name ILIKE $${params.length + 2} OR
+        ef.original_name ILIKE $${params.length + 3}
       )`)
       params.push(`%${query.search}%`, `%${query.search}%`, `%${query.search}%`)
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
 
-    // ?�체 개수 조회
+    // 전체 개수 조회
     const countQuery = `
       SELECT COUNT(*) as total
       FROM work_status ws
@@ -267,10 +268,10 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
       JOIN excel_files ef ON ed.file_id = ef.id
       ${whereClause}
     `
-    const [countResult] = await pool.query(countQuery, params) as any[]
-    const total = countResult[0].total
+    const countResult = await pool.query(countQuery, params)
+    const total = countResult.rows[0].total
 
-    // ?�이??조회
+    // 데이터 조회
     const dataQuery = `
       SELECT 
         ws.*,
@@ -290,15 +291,15 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
       JOIN excel_files ef ON ed.file_id = ef.id
       ${whereClause}
       ORDER BY ws.completed_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `
-    const [workStatuses] = await pool.query(dataQuery, [...params, limit, offset]) as any[]
+    const workStatuses = await pool.query(dataQuery, [...params, limit, offset])
 
-    // ?�계 ?�보 조회
+    // 요약 조회
     const summary = await getWorkSummary()
 
     return {
-      workStatuses: workStatuses.map((ws: any) => ({
+      workStatuses: workStatuses.rows.map((ws: any) => ({
         id: ws.id,
         excel_data_id: ws.excel_data_id,
         file_id: ws.file_id,
@@ -334,24 +335,24 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
   }
 }
 
-// ?�무 ?�약 ?�보 조회
+// 작업 요약 조회
 export const getWorkSummary = async (): Promise<WorkSummary> => {
   try {
-    const [summary] = await pool.query(`
+    const summary = await pool.query(`
       SELECT 
         COUNT(*) as totalCompleted,
-        COUNT(CASE WHEN DATE(completed_at) = CURDATE() THEN 1 END) as todayCompleted,
-        COUNT(CASE WHEN completed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as thisWeekCompleted,
-        COUNT(CASE WHEN completed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as thisMonthCompleted
+        COUNT(CASE WHEN DATE(completed_at) = CURRENT_DATE THEN 1 END) as todayCompleted,
+        COUNT(CASE WHEN completed_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as thisWeekCompleted,
+        COUNT(CASE WHEN completed_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as thisMonthCompleted
       FROM work_status 
       WHERE is_completed = TRUE
-    `) as any[]
+    `)
 
     return {
-      totalCompleted: summary[0].totalCompleted || 0,
-      todayCompleted: summary[0].todayCompleted || 0,
-      thisWeekCompleted: summary[0].thisWeekCompleted || 0,
-      thisMonthCompleted: summary[0].thisMonthCompleted || 0
+      totalCompleted: summary.rows[0].totalCompleted || 0,
+      todayCompleted: summary.rows[0].todayCompleted || 0,
+      thisWeekCompleted: summary.rows[0].thisWeekCompleted || 0,
+      thisMonthCompleted: summary.rows[0].thisMonthCompleted || 0
     }
   } catch (error) {
     console.error('Get work summary error:', error)
@@ -359,7 +360,7 @@ export const getWorkSummary = async (): Promise<WorkSummary> => {
   }
 }
 
-// ?�동 로그 기록
+// 작업 활동 로그 기록
 export const logWorkActivity = async (
   excelDataId: number,
   userId: number,
@@ -371,7 +372,7 @@ export const logWorkActivity = async (
   try {
     await pool.query(
       `INSERT INTO work_history (excel_data_id, user_id, action, old_status, new_status, notes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6)`,
       [excelDataId, userId, action, oldStatus, newStatus, notes]
     )
   } catch (error) {
@@ -380,7 +381,7 @@ export const logWorkActivity = async (
   }
 }
 
-// ?�???�무 처리
+// 작업 상태 일괄 토글 처리
 export const bulkToggleWorkStatus = async (
   rowIds: number[],
   userId: number,
