@@ -327,7 +327,7 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
     const fileId = parseInt(req.params.fileId)
     const userId = req.user!.id
     const { page = 1, limit = 50 } = req.query
-    const { criteria } = req.body
+    const { criteria = {} } = req.body
 
     const offset = (Number(page) - 1) * Number(limit)
 
@@ -360,13 +360,13 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
     let params = [fileId]
     let paramIndex = 2
 
-    if (criteria.search) {
+    if (criteria && criteria.search) {
       whereClause += ` AND (row_data::text ILIKE $${paramIndex})`
       params.push(`%${criteria.search}%`)
       paramIndex++
     }
 
-    if (criteria.filters && criteria.filters.length > 0) {
+    if (criteria && criteria.filters && criteria.filters.length > 0) {
       criteria.filters.forEach((filter: any) => {
         whereClause += ` AND (row_data->>'${filter.column}')::${filter.type} ${filter.operator} $${paramIndex}`
         params.push(filter.value)
