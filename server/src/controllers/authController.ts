@@ -187,10 +187,12 @@ export const approveUser = async (req: Request, res: Response): Promise<void> =>
     const adminId = req.user!.id
 
     // 사용자 존재 여부 체크
-    const [users] = await pool.query(
+    const result = await pool.query(
       'SELECT id, email, name, status FROM users WHERE id = $1',
       [userId]
-    ) as any[]
+    )
+    
+    const users = result.rows
 
     if (users.length === 0) {
       res.status(404).json({
