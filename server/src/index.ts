@@ -122,9 +122,12 @@ app.get('/api/health', (req, res) => {
 // Start server
 const startServer = async () => {
   try {
-    // Connect to database
-    await connectDB()
-    console.log('??Database connected successfully')
+    // Initialize database
+    await initializeDatabase()
+    await createIndexes()
+    await insertInitialData()
+    
+    console.log('✅ Database connected successfully')
     
     server.listen(PORT, () => {
       console.log(`?? Server running on port ${PORT}`)
