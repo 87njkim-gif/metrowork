@@ -65,7 +65,7 @@ export const toggleWorkStatus = async (
     }
 
     // 활동 로그 기록
-    const action = isCompleted ? 'completed' : 'uncompleted'
+    const action = isCompleted ? 'completed' : 'cancelled'
     await logWorkActivity(excelDataId, userId, action, !isCompleted, isCompleted, notes)
 
     return workStatus
@@ -87,7 +87,7 @@ export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted:
     // 각 사용자에 대한 작업 상태 동기화
     for (const user of users.rows) {
       const existing = await pool.query(
-        'SELECT id FROM work_status WHERE excel_data_id = $1 AND user_id = $2',
+        'SELECT id FROM work_status WHERE data_id = $1 AND user_id = $2',
         [excelDataId, user.id]
       )
 
@@ -96,7 +96,7 @@ export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted:
         await pool.query(
           `UPDATE work_status 
            SET is_completed = $1, completed_at = $2, updated_at = NOW()
-           WHERE excel_data_id = $3 AND user_id = $4`,
+           WHERE data_id = $3 AND user_id = $4`,
           [isCompleted, isCompleted ? new Date() : null, excelDataId, user.id]
         )
       } else {
@@ -268,7 +268,7 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
     const countQuery = `
       SELECT COUNT(*) as total
       FROM work_status ws
-      JOIN excel_data ed ON ws.excel_data_id = ed.id
+      JOIN excel_data ed ON ws.data_id = ed.id
       JOIN users u ON ws.user_id = u.id
       JOIN excel_files ef ON ed.file_id = ef.id
       ${whereClause}
@@ -291,7 +291,7 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
         ef.original_name as file_name,
         ef.description as file_description
       FROM work_status ws
-      JOIN excel_data ed ON ws.excel_data_id = ed.id
+      JOIN excel_data ed ON ws.data_id = ed.id
       JOIN users u ON ws.user_id = u.id
       JOIN excel_files ef ON ed.file_id = ef.id
       ${whereClause}
