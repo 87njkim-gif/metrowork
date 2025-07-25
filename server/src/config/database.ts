@@ -64,10 +64,10 @@ const initializeDatabase = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS excel_files (
         id SERIAL PRIMARY KEY,
         filename VARCHAR(255) NOT NULL,
-        original_name VARCHAR(255) NOT NULL,
+        original_name VARCHAR(500) NOT NULL,
         file_path VARCHAR(500) NOT NULL,
         file_size INTEGER NOT NULL,
-        file_type VARCHAR(50),
+        file_type VARCHAR(100),
         sheet_name VARCHAR(100),
         total_rows INTEGER DEFAULT 0,
         total_columns INTEGER DEFAULT 0,
@@ -129,7 +129,7 @@ const initializeDatabase = async (): Promise<void> => {
       )
     `)
 
-    // work_status 테이블에 is_completed 컬럼이 없으면 추가
+    // work_status 테이블에 필요한 컬럼들이 없으면 추가
     try {
       await pool.query(`
         ALTER TABLE work_status 
@@ -138,6 +138,36 @@ const initializeDatabase = async (): Promise<void> => {
       console.log('✅ is_completed column added to work_status table')
     } catch (error) {
       console.log('⚠️ is_completed column already exists or error occurred:', error.message)
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE work_status 
+        ADD COLUMN IF NOT EXISTS user_id INTEGER
+      `)
+      console.log('✅ user_id column added to work_status table')
+    } catch (error) {
+      console.log('⚠️ user_id column already exists or error occurred:', error.message)
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE work_status 
+        ADD COLUMN IF NOT EXISTS excel_data_id INTEGER
+      `)
+      console.log('✅ excel_data_id column added to work_status table')
+    } catch (error) {
+      console.log('⚠️ excel_data_id column already exists or error occurred:', error.message)
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE work_status 
+        ADD COLUMN IF NOT EXISTS file_id INTEGER
+      `)
+      console.log('✅ file_id column added to work_status table')
+    } catch (error) {
+      console.log('⚠️ file_id column already exists or error occurred:', error.message)
     }
 
     // user_sessions 테이블 생성
