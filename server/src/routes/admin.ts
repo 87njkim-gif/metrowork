@@ -13,7 +13,7 @@ router.use(extractToken, authenticate, requireAdmin)
 // 승인중인 사용자 목록 조회
 router.get('/pending-users', async (req: Request, res: Response): Promise<void> => {
   try {
-    const [users] = await pool.query(`
+    const result = await pool.query(`
       SELECT 
         u.id, u.email, u.name, u.role, u.status, u.phone, u.department, u.position,
         u.created_at, u.approved_at, u.approved_by, u.rejected_at, u.rejected_by, u.rejection_reason,
@@ -24,7 +24,9 @@ router.get('/pending-users', async (req: Request, res: Response): Promise<void> 
       LEFT JOIN users rejector ON u.rejected_by = rejector.id
       WHERE u.status = 'pending'
       ORDER BY u.created_at ASC
-    `) as any[]
+    `)
+    
+    const users = result.rows
 
     res.status(200).json({
       success: true,
