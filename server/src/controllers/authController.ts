@@ -50,12 +50,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const hashedPassword = await hashPassword(password)
 
     // 사용자 등록
-    const [result] = await pool.query(
+    const result = await pool.query(
       'INSERT INTO users (name, email, password, phone, status, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id, name, email, status',
       [name, email, hashedPassword, phone, 'pending']
-    ) as any[]
+    )
 
-    const newUser = result[0]
+    const newUser = result.rows[0]
 
     console.log('새 사용자 등록 완료:', { id: newUser.id, name: newUser.name })
 
