@@ -22,10 +22,10 @@ export const getUserWorkStatistics = async (req: Request, res: Response): Promis
         userStats: stats,
         summary: {
           totalUsers: stats.length,
-          totalCompleted: stats.reduce((sum, stat) => sum + stat.completed_count, 0),
-          totalPending: stats.reduce((sum, stat) => sum + stat.pending_count, 0),
+          totalCompleted: stats.reduce((sum, stat) => sum + Number(stat.completed_count), 0),
+          totalPending: stats.reduce((sum, stat) => sum + Number(stat.pending_count), 0),
           averageCompletionRate: stats.length > 0 
-            ? stats.reduce((sum, stat) => sum + stat.completion_rate, 0) / stats.length 
+            ? stats.reduce((sum, stat) => sum + Number(stat.completion_rate), 0) / stats.length 
             : 0
         }
       }
