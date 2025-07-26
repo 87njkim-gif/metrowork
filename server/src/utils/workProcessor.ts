@@ -221,7 +221,6 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
     if (query.userId) {
       whereConditions.push(`ws.user_id = $${params.length + 1}`)
       params.push(query.userId)
-      console.log('🔍 사용자 필터 적용:', { userId: query.userId, whereConditions, params })
     }
 
     // 파일 필터
@@ -277,16 +276,6 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `
     const workStatuses = await pool.query(dataQuery, [...params, limit, offset])
-    
-    console.log('🔍 쿼리 결과:', { 
-      userId: query.userId, 
-      totalRows: workStatuses.rows.length,
-      firstRow: workStatuses.rows[0] ? { 
-        user_id: workStatuses.rows[0].user_id, 
-        user_name: workStatuses.rows[0].user_name,
-        excel_data_id: workStatuses.rows[0].excel_data_id 
-      } : null
-    })
 
     // 요약 조회
     const summary = await getWorkSummary()
