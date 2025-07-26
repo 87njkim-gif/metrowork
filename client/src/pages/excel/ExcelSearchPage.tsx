@@ -271,10 +271,15 @@ const ExcelSearchPage: React.FC = () => {
         
         {/* 사용 안내 */}
         <div className="mb-4 p-3 bg-blue-50 rounded text-sm text-blue-700">
-          💡 <strong>사용법:</strong> 항목을 길게 터치하면 업무 완료/해제 설정이 가능합니다.
+          💡 <strong>전체 업무 현황:</strong> 이 화면에서는 모든 사용자가 완료한 업무가 표시됩니다.
           {completedRows.size > 0 && (
             <span className="ml-2">완료된 항목: <strong>{completedRows.size}개</strong></span>
           )}
+          <br />
+          <span className="text-xs text-blue-600">
+            💡 <strong>사용법:</strong> 항목을 길게 터치하면 업무 완료/해제 설정이 가능합니다. 
+            본인이 처리한 업무만 해제할 수 있습니다.
+          </span>
         </div>
         
         {/* 더보기 버튼 */}

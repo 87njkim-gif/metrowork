@@ -45,6 +45,12 @@ const WorkTodayPage: React.FC = () => {
       <div className="page-content max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">내 업무 완료 현황</h1>
         
+        {/* 개인 업무 안내 */}
+        <div className="mb-4 p-3 bg-blue-50 rounded text-sm text-blue-700">
+          💡 <strong>개인 업무 관리:</strong> 이 화면에서는 본인이 완료한 업무만 표시됩니다.
+          전체 업무 현황을 확인하려면 "검색" 화면을 이용하세요.
+        </div>
+        
         {/* 날짜 선택 */}
         <div className="mb-4 flex items-center gap-4">
           <label className="font-medium">업무일:</label>
