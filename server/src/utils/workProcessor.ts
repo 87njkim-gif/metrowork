@@ -26,47 +26,88 @@ export const toggleWorkStatus = async (
       [excelDataId, userId]
     )
 
-    const completedAt = isCompleted ? new Date() : null
     let workStatus: WorkStatus
 
-    if (existing.rows.length > 0) {
-      // 기존 상태 업데이트
-      await pool.query(
-        `UPDATE work_status 
-         SET is_completed = $1, completed_at = $2, notes = $3, updated_at = NOW()
-         WHERE data_id = $4 AND user_id = $5`,
-        [isCompleted, completedAt, notes, excelDataId, userId]
-      )
+    if (isCompleted) {
+      // 업무 완료 처리
+      const completedAt = new Date()
+      
+      if (existing.rows.length > 0) {
+        // 기존 상태 업데이트
+        await pool.query(
+          `UPDATE work_status 
+           SET is_completed = $1, completed_at = $2, notes = $3, updated_at = NOW()
+           WHERE data_id = $4 AND user_id = $5`,
+          [true, completedAt, notes, excelDataId, userId]
+        )
 
-      // 업데이트된 상태 조회
-      const updated = await pool.query(
-        'SELECT * FROM work_status WHERE data_id = $1 AND user_id = $2',
-        [excelDataId, userId]
-      )
+        // 업데이트된 상태 조회
+        const updated = await pool.query(
+          'SELECT * FROM work_status WHERE data_id = $1 AND user_id = $2',
+          [excelDataId, userId]
+        )
 
-      workStatus = updated.rows[0] as WorkStatus
+        workStatus = updated.rows[0] as WorkStatus
+      } else {
+        // 새로운 상태 생성
+        const result = await pool.query(
+          `INSERT INTO work_status (data_id, user_id, assigned_to, is_completed, completed_at, notes)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [excelDataId, userId, userId, true, completedAt, notes]
+        )
+
+        const workStatusId = result.rows[0].id
+
+        // 생성된 상태 조회
+        const newStatus = await pool.query(
+          'SELECT * FROM work_status WHERE id = $1',
+          [workStatusId]
+        )
+
+        workStatus = newStatus.rows[0] as WorkStatus
+      }
+
+      // 활동 로그 기록
+      await logWorkActivity(excelDataId, userId, 'completed', false, true, notes)
     } else {
-      // 새로운 상태 생성
-      const result = await pool.query(
-        `INSERT INTO work_status (data_id, user_id, assigned_to, is_completed, completed_at, notes)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [excelDataId, userId, userId, isCompleted, completedAt, notes]
-      )
+      // 업무 해제 처리 - 레코드 완전 삭제
+      if (existing.rows.length > 0) {
+        // 활동 로그 기록 (삭제 전에)
+        await logWorkActivity(excelDataId, userId, 'cancelled', true, false, notes)
+        
+        // 레코드 삭제
+        await pool.query(
+          'DELETE FROM work_status WHERE data_id = $1 AND user_id = $2',
+          [excelDataId, userId]
+        )
 
-      const workStatusId = result.rows[0].id
-
-      // 생성된 상태 조회
-      const newStatus = await pool.query(
-        'SELECT * FROM work_status WHERE id = $1',
-        [workStatusId]
-      )
-
-      workStatus = newStatus.rows[0] as WorkStatus
+        // 삭제된 상태를 나타내는 더미 객체 반환
+        workStatus = {
+          id: 0,
+          data_id: excelDataId,
+          user_id: userId,
+          assigned_to: userId,
+          is_completed: false,
+          completed_at: null,
+          notes: notes || null,
+          created_at: new Date(),
+          updated_at: new Date()
+        } as WorkStatus
+      } else {
+        // 레코드가 없으면 더미 객체 반환
+        workStatus = {
+          id: 0,
+          data_id: excelDataId,
+          user_id: userId,
+          assigned_to: userId,
+          is_completed: false,
+          completed_at: null,
+          notes: notes || null,
+          created_at: new Date(),
+          updated_at: new Date()
+        } as WorkStatus
+      }
     }
-
-    // 활동 로그 기록
-    const action = isCompleted ? 'completed' : 'cancelled'
-    await logWorkActivity(excelDataId, userId, action, !isCompleted, isCompleted, notes)
 
     return workStatus
   } catch (error) {
