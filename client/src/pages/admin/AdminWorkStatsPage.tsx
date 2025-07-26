@@ -50,6 +50,31 @@ const AdminWorkStatsPage: React.FC = () => {
     }
   };
 
+  // 데이터 정리 함수
+  const handleCleanupData = async () => {
+    if (!window.confirm('미완료된 업무 데이터를 모두 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await apiService.cleanupWorkStatusData();
+      
+      if (response.success) {
+        alert(`데이터 정리 완료!\n\n삭제된 레코드: ${response.data.deletedCount}개\n현재 완료된 업무: ${response.data.currentStats.completedRecords}개`);
+        // 데이터 새로고침
+        fetchUserWorkStats();
+      } else {
+        setError(response.message || '데이터 정리 중 오류가 발생했습니다.');
+      }
+    } catch (err) {
+      setError('서버 연결에 실패했습니다.');
+      console.error('Cleanup data error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchUserWorkStats();
   }, []);
@@ -133,14 +158,23 @@ const AdminWorkStatsPage: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg mr-4">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-100 rounded-lg mr-4">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">완료된 업무</p>
+                    <p className="text-2xl font-bold text-gray-900">{summary.totalCompleted}개</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">완료된 업무</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalCompleted}개</p>
-                </div>
+                <button
+                  onClick={handleCleanupData}
+                  className="px-3 py-1 bg-red-50 text-red-600 text-sm rounded-md hover:bg-red-100 transition-colors duration-200"
+                  title="미완료 업무 데이터 정리"
+                >
+                  데이터 정리
+                </button>
               </div>
             </div>
           </div>

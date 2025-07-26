@@ -394,4 +394,18 @@ router.get('/dashboard/stats', async (req: Request, res: Response): Promise<void
   }
 })
 
+// 데이터 정리
+router.post('/cleanup-work-status', extractToken, authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { cleanupWorkStatusData } = await import('../controllers/adminController')
+    await cleanupWorkStatusData(req, res)
+  } catch (error) {
+    console.error('Cleanup work status error:', error)
+    res.status(500).json({
+      success: false,
+      message: '데이터 정리 중 오류가 발생했습니다.'
+    })
+  }
+})
+
 export default router 

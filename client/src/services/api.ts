@@ -307,6 +307,12 @@ class ApiService {
     return response.data
   }
 
+  // 데이터 정리 (관리자만)
+  async cleanupWorkStatusData(): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.api.post('/admin/cleanup-work-status')
+    return response.data
+  }
+
   // 유틸리티 메서드
   setAuthToken(token: string) {
     localStorage.setItem('token', token)
