@@ -198,6 +198,8 @@ const ExcelSearchPage: React.FC = () => {
     }
   }, [selectedFileId, page]);
 
+  const [completedWorkData, setCompletedWorkData] = useState<{[key: number]: any}>({});
+
   const loadCompletedWork = async () => {
     try {
       const response = await apiService.getCompletedWork({
@@ -208,6 +210,13 @@ const ExcelSearchPage: React.FC = () => {
       if (response.data?.workStatuses) {
         const completedIds = new Set(response.data.workStatuses.map((work: any) => work.excel_data_id));
         setCompletedRows(completedIds);
+        
+        // 완료된 업무 데이터를 저장 (사용자 정보 포함)
+        const workDataMap: {[key: number]: any} = {};
+        response.data.workStatuses.forEach((work: any) => {
+          workDataMap[work.excel_data_id] = work;
+        });
+        setCompletedWorkData(workDataMap);
       }
     } catch (error) {
       console.error('완료된 업무 로드 실패:', error);
@@ -373,7 +382,26 @@ const ExcelSearchPage: React.FC = () => {
               <p className="text-sm text-gray-600 mb-2">선택된 항목:</p>
               <p className="font-medium">{selectedRowForWork.row_data?.자산 || '자산 정보 없음'}</p>
               <p className="text-sm text-gray-500">{selectedRowForWork.row_data?.설치팀 || ''}</p>
+              {completedRows.has(selectedRowForWork.id) && completedWorkData[selectedRowForWork.id] && (
+                <p className="text-sm text-blue-600 mt-2">
+                  완료자: {completedWorkData[selectedRowForWork.id].user?.name || '알 수 없음'}
+                </p>
+              )}
             </div>
+            
+            {/* 타인의 업무인 경우 안내 메시지 */}
+            {completedRows.has(selectedRowForWork.id) && 
+             completedWorkData[selectedRowForWork.id] && 
+             completedWorkData[selectedRowForWork.id].user?.id !== user?.id && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <p className="text-yellow-800 text-sm">
+                  <strong>{completedWorkData[selectedRowForWork.id].user?.name}</strong> 회원이 처리한 업무입니다.
+                  <br />
+                  본인이 처리한 업무만 해제할 수 있습니다.
+                </p>
+              </div>
+            )}
+            
             <p className="mb-6 text-gray-700">
               {completedRows.has(selectedRowForWork.id) 
                 ? '이 항목의 업무 완료를 해제하시겠습니까?' 
@@ -391,11 +419,14 @@ const ExcelSearchPage: React.FC = () => {
               </button>
               <button
                 onClick={() => handleWorkComplete(!completedRows.has(selectedRowForWork.id))}
+                disabled={completedRows.has(selectedRowForWork.id) && 
+                         completedWorkData[selectedRowForWork.id] && 
+                         completedWorkData[selectedRowForWork.id].user?.id !== user?.id}
                 className={`px-4 py-2 text-white rounded ${
                   completedRows.has(selectedRowForWork.id) 
                     ? 'bg-red-600 hover:bg-red-700' 
                     : 'bg-green-600 hover:bg-green-700'
-                }`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {completedRows.has(selectedRowForWork.id) ? '해제' : '완료'}
               </button>
