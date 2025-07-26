@@ -9,6 +9,7 @@ const ExcelSearchPage: React.FC = () => {
   const [columns, setColumns] = useState<any[]>([]);
   const [data, setData] = useState<any[]>([]);
   const [allData, setAllData] = useState<any[]>([]);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
@@ -68,7 +69,7 @@ const ExcelSearchPage: React.FC = () => {
     
     // 서버 사이드에서 팀 필터링과 검색을 함께 처리
     const searchParams: any = { page, limit: PAGE_SIZE };
-    if (search) searchParams.searchTerm = search;
+    if (search) searchParams.search = search;
     
     // 팀 필터링을 위한 검색 조건 구성
     if (selectedTeam) {
@@ -112,7 +113,7 @@ const ExcelSearchPage: React.FC = () => {
       console.error('API 에러:', error);
       setLoading(false);
     });
-  }, [selectedFileId, page, search, selectedTeam]); // columns 제거
+  }, [selectedFileId, page, search, selectedTeam]); // search만 의존성에 둠
 
   // 팀 선택 핸들러
   const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -125,6 +126,7 @@ const ExcelSearchPage: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
+    setSearch(searchInput); // 검색 버튼 클릭 시에만 검색어 반영
   };
 
   // 길게 터치 핸들러
@@ -247,8 +249,8 @@ const ExcelSearchPage: React.FC = () => {
         <form onSubmit={handleSearch} className="mb-4 flex gap-2">
           <input
             type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             placeholder="자산번호 / 주소 / 전철역 등으로 검색하세요"
             className="border rounded px-2 py-1 flex-1"
           />
