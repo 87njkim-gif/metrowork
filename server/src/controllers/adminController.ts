@@ -4,9 +4,16 @@ import { getUserWorkStats, getGlobalWorkStats } from '../utils/workProcessor'
 
 const pool = getPool()
 
-// ?�원�??�무 처리 ?�계 조회
+// 회원별 업무 처리 통계 조회
 export const getUserWorkStatistics = async (req: Request, res: Response): Promise<void> => {
   try {
+    // 캐시 방지 헤더 설정
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    })
+
     const stats = await getUserWorkStats()
 
     res.status(200).json({
@@ -27,12 +34,12 @@ export const getUserWorkStatistics = async (req: Request, res: Response): Promis
     console.error('Get user work statistics error:', error)
     res.status(500).json({
       success: false,
-      message: '?�원�??�무 ?�계 조회 �??�류가 발생?�습?�다.'
+      message: '회원별 업무 통계 조회 중 오류가 발생했습니다.'
     })
   }
 }
 
-// ?�역 ?�무 ?�황 조회
+// ?역 ?�무 ?�황 조회
 export const getGlobalWorkStatistics = async (req: Request, res: Response): Promise<void> => {
   try {
     const stats = await getGlobalWorkStats()

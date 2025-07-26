@@ -284,9 +284,15 @@ class ApiService {
     return response.data
   }
 
-  // 회원별 업무 통계 조회
-  async getUserWorkStats(): Promise<ApiResponse<{ userStats: any[]; summary: any }>> {
-    const response: AxiosResponse<ApiResponse> = await this.api.get('/admin/work/user-stats')
+  // 회원별 업무 통계 조회 (관리자만)
+  async getUserWorkStats(): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.api.get('/admin/work/user-stats', {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
     return response.data
   }
 

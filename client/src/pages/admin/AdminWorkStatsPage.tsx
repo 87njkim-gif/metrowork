@@ -61,9 +61,9 @@ const AdminWorkStatsPage: React.FC = () => {
       const response = await apiService.cleanupWorkStatusData();
       
       if (response.success) {
-        alert(`데이터 정리 완료!\n\n삭제된 레코드: ${response.data.deletedCount}개\n현재 완료된 업무: ${response.data.currentStats.completedRecords}개`);
-        // 데이터 새로고침
-        fetchUserWorkStats();
+        alert(`데이터 정리 완료!\n\n삭제된 레코드: ${response.data.deletedCount}개\n현재 완료된 업무: ${response.data.currentStats.completedRecords}개\n\n페이지를 새로고침합니다.`);
+        // 강제로 페이지 새로고침하여 캐시 문제 해결
+        window.location.reload();
       } else {
         setError(response.message || '데이터 정리 중 오류가 발생했습니다.');
       }
