@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useQueryClient } from 'react-query';
 import apiService from '../../services/api';
+import { useAuth } from '../../hooks/useAuth';
 
 const PAGE_SIZE = 20;
 
 const ExcelSearchPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [files, setFiles] = useState<any[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
   const [columns, setColumns] = useState<any[]>([]);
