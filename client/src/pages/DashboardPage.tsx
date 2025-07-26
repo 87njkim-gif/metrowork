@@ -11,7 +11,8 @@ import {
   Calendar,
   Clock,
   LogOut,
-  BarChart3
+  BarChart3,
+  UserX
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import apiService from '../services/api'
@@ -116,6 +117,10 @@ const DashboardPage: React.FC = () => {
     navigate('/login')
   }
 
+  const handleDeleteAccount = () => {
+    navigate('/delete-account')
+  }
+
   if (isLoading) {
     return (
       <div className="page-container">
@@ -139,13 +144,22 @@ const DashboardPage: React.FC = () => {
               {format(new Date(), 'yyyy년 MM월 dd일 EEEE', { locale: ko })}
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-200"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            <span className="text-sm font-medium">로그아웃</span>
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleDeleteAccount}
+              className="flex items-center px-3 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+            >
+              <UserX className="w-4 h-4 mr-2" />
+              <span className="text-sm font-medium">회원탈퇴</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-200"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              <span className="text-sm font-medium">로그아웃</span>
+            </button>
+          </div>
         </div>
 
         {/* 사용자 업무 현황 */}

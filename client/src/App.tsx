@@ -10,6 +10,7 @@ import { AdminRoute } from './components/auth/AdminRoute'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import NewRegisterPage from './pages/auth/NewRegisterPage'
+import DeleteAccountPage from './pages/auth/DeleteAccountPage'
 import DashboardPage from './pages/DashboardPage'
 import ExcelUploadPage from './pages/excel/ExcelUploadPage'
 import ExcelSearchPage from './pages/excel/ExcelSearchPage'
@@ -43,6 +44,13 @@ const App: React.FC = () => {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/register-new" element={<NewRegisterPage />} />
+              
+              {/* 보호된 라우트 */}
+              <Route path="/delete-account" element={
+                <ProtectedRoute>
+                  <DeleteAccountPage />
+                </ProtectedRoute>
+              } />
               
               {/* 보호된 라우트 */}
               <Route path="/dashboard" element={

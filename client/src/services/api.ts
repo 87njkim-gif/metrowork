@@ -91,6 +91,13 @@ class ApiService {
     return response.data
   }
 
+  async deleteAccount(password: string): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.api.delete('/auth/account', {
+      data: { password }
+    })
+    return response.data
+  }
+
   // 엑셀 관련 API
   async uploadExcelFile(formData: FormData): Promise<ApiResponse> {
     const response: AxiosResponse<ApiResponse> = await this.api.post('/excel/upload', formData, {
