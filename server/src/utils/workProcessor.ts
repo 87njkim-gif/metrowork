@@ -75,49 +75,10 @@ export const toggleWorkStatus = async (
   }
 }
 
-// 모든 사용자에 대한 작업 상태 동기화
-export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted: boolean): Promise<void> => {
-  try {
-    // 모든 사용자 조회
-    const users = await pool.query(
-      'SELECT id FROM users WHERE status = $1 AND role = $2',
-      ['approved', 'user']
-    )
-
-    // 각 사용자에 대한 작업 상태 동기화
-    for (const user of users.rows) {
-      const existing = await pool.query(
-        'SELECT id FROM work_status WHERE data_id = $1 AND user_id = $2',
-        [excelDataId, user.id]
-      )
-
-      if (existing.rows.length > 0) {
-        // 기존 상태 업데이트
-        await pool.query(
-          `UPDATE work_status 
-           SET is_completed = $1, completed_at = $2, updated_at = NOW()
-           WHERE data_id = $3 AND user_id = $4`,
-          [isCompleted, isCompleted ? new Date() : null, excelDataId, user.id]
-        )
-      } else {
-        // 새로운 상태 생성 (중복 방지)
-        await pool.query(
-          `INSERT INTO work_status (data_id, user_id, assigned_to, is_completed, completed_at)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (data_id, assigned_to) 
-           DO UPDATE SET 
-             is_completed = EXCLUDED.is_completed,
-             completed_at = EXCLUDED.completed_at,
-             updated_at = NOW()`,
-          [excelDataId, user.id, user.id, isCompleted, isCompleted ? new Date() : null]
-        )
-      }
-    }
-  } catch (error) {
-    console.error('Sync work status error:', error)
-    throw error
-  }
-}
+// 모든 사용자에 대한 작업 상태 동기화 (더 이상 사용하지 않음 - 개별 사용자별로 관리)
+// export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted: boolean): Promise<void> => {
+//   // 이 함수는 제거됨 - 각 사용자의 업무 상태는 개별적으로 관리
+// }
 
 // 작업 상태 취소 권한 확인
 export const canUncompleteWork = async (excelDataId: number, userId: number): Promise<{

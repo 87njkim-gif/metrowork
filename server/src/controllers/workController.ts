@@ -8,8 +8,7 @@ import {
   getUserWorkStats,
   bulkToggleWorkStatus,
   logWorkActivity,
-  canUncompleteWork,
-  syncWorkStatusToAllUsers
+  canUncompleteWork
 } from '../utils/workProcessor'
 import {
   CheckWorkRequest,
@@ -77,21 +76,15 @@ export const checkWorkItem = async (req: Request, res: Response): Promise<void> 
 
     const oldStatus = existingStatus.length > 0 ? existingStatus[0].is_completed : null
 
-    // 상태 변경
+    // 상태 변경 (본인만)
     const workStatus = await toggleWorkStatus(rowId, userId, isCompleted, notes)
-
-    // 완료 처리된 경우 모든 사용자에게 동기화
-    if (isCompleted) {
-      await syncWorkStatusToAllUsers(rowId, true)
-    }
 
     res.status(200).json({
       success: true,
       message: `업무가 ${isCompleted ? '완료' : '미완료'}로 변경되었습니다.`,
       data: {
         workStatus,
-        action: isCompleted ? 'completed' : 'uncompleted',
-        synced: isCompleted // 동기화 여부
+        action: isCompleted ? 'completed' : 'uncompleted'
       }
     })
   } catch (error) {
