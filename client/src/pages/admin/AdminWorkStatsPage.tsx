@@ -119,7 +119,7 @@ const AdminWorkStatsPage: React.FC = () => {
 
         {/* 전체 통계 카드 */}
         {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg mr-4">
@@ -140,30 +140,6 @@ const AdminWorkStatsPage: React.FC = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">완료된 업무</p>
                   <p className="text-2xl font-bold text-gray-900">{summary.totalCompleted}개</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg mr-4">
-                  <Clock className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">대기 중 업무</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalPending}개</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg mr-4">
-                  <TrendingUp className="w-6 h-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">평균 완료율</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.averageCompletionRate.toFixed(1)}%</p>
                 </div>
               </div>
             </div>
@@ -188,12 +164,6 @@ const AdminWorkStatsPage: React.FC = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     완료
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    대기
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    완료율
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     최근 완료
@@ -224,23 +194,6 @@ const AdminWorkStatsPage: React.FC = () => {
                       <div className="flex items-center">
                         <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
                         <span className="text-sm font-medium text-green-600">{stat.completed_count}개</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 text-yellow-500 mr-1" />
-                        <span className="text-sm font-medium text-yellow-600">{stat.pending_count}개</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
-                            style={{ width: `${stat.completion_rate}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">{Number(stat.completion_rate).toFixed(1)}%</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -288,7 +241,6 @@ const AdminWorkStatsPage: React.FC = () => {
                     <h3 className="font-medium text-gray-900">{stat.user_name}</h3>
                     <p className="text-sm text-gray-500">{stat.user_department || '부서 미지정'}</p>
                     <p className="text-lg font-bold text-blue-600 mt-2">{stat.completed_count}개 완료</p>
-                    <p className="text-sm text-gray-500">{Number(stat.completion_rate).toFixed(1)}% 완료율</p>
                   </div>
                 ))}
               </div>
