@@ -6,6 +6,7 @@ import {
   refreshToken,
   logout,
   getCurrentUser,
+  deleteAccount,
   registerValidation,
   loginValidation,
   approveUserValidation,
@@ -21,18 +22,19 @@ import {
 
 const router = Router()
 
-// 공개 ?�우??(?�증 불필??
+// 공개 ?�우??(?�증 불필??
 router.post('/register', registerValidation, register)
 router.post('/login', loginValidation, login)
 router.post('/refresh', refreshToken)
 router.post('/logout', logout)
-router.post('/generate-hash', generatePasswordHash) // ?�시??
-router.post('/update-admin-password', updateAdminPassword) // ?�시??
+router.post('/generate-hash', generatePasswordHash) // ?�시??
+router.post('/update-admin-password', updateAdminPassword) // ?�시??
 
-// 보호???�우??(?�증 ?�요)
+// 보호???�우??(?�증 ?�요)
 router.get('/me', extractToken, authenticate, getCurrentUser)
+router.delete('/account', extractToken, authenticate, deleteAccount)
 
-// 관리자 ?�용 ?�우??
+// 관리자 ?�용 ?�우??
 router.put('/admin/approve/:userId', 
   extractToken, 
   authenticate, 

@@ -356,6 +356,101 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
+// 회원탈퇴 API
+export const deleteAccount = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id
+    const { password }: { password: string } = req.body
+
+    // 비밀번호 확인
+    const userResult = await pool.query(
+      'SELECT password FROM users WHERE id = $1',
+      [userId]
+    )
+
+    if (userResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      })
+      return
+    }
+
+    const isPasswordValid = await verifyPassword(password, userResult.rows[0].password)
+    if (!isPasswordValid) {
+      res.status(401).json({
+        success: false,
+        message: '비밀번호가 올바르지 않습니다.'
+      })
+      return
+    }
+
+    // 관리자는 탈퇴 불가
+    const adminCheck = await pool.query(
+      'SELECT role FROM users WHERE id = $1',
+      [userId]
+    )
+
+    if (adminCheck.rows[0].role === 'admin') {
+      res.status(403).json({
+        success: false,
+        message: '관리자는 탈퇴할 수 없습니다.'
+      })
+      return
+    }
+
+    // 트랜잭션 시작
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      // 1. 사용자의 업무 기록 삭제
+      await client.query(
+        'DELETE FROM work_status WHERE user_id = $1',
+        [userId]
+      )
+
+      // 2. 사용자의 업무 활동 기록 삭제
+      await client.query(
+        'DELETE FROM work_history WHERE user_id = $1',
+        [userId]
+      )
+
+      // 3. 사용자의 리프레시 토큰 삭제
+      await client.query(
+        'DELETE FROM refresh_tokens WHERE user_id = $1',
+        [userId]
+      )
+
+      // 4. 사용자 계정 삭제
+      await client.query(
+        'DELETE FROM users WHERE id = $1',
+        [userId]
+      )
+
+      await client.query('COMMIT')
+
+      console.log('회원탈퇴 완료:', { userId })
+
+      res.status(200).json({
+        success: true,
+        message: '회원탈퇴가 완료되었습니다.'
+      })
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  } catch (error) {
+    console.error('Delete account error:', error)
+    res.status(500).json({
+      success: false,
+      message: '회원탈퇴 중 오류가 발생했습니다.'
+    })
+  }
+}
+
 // 현재 사용자 정보 조회 API
 export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
   try {
