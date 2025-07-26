@@ -70,16 +70,16 @@ const ExcelSearchPage: React.FC = () => {
     // 서버 사이드에서 팀 필터링과 검색을 함께 처리
     const searchParams: any = { page, limit: PAGE_SIZE };
     if (search) searchParams.search = search;
-    
+
     // 팀 필터링을 위한 검색 조건 구성
+    if (!searchParams.criteria) searchParams.criteria = {};
+    if (search) searchParams.criteria.search = search;
     if (selectedTeam) {
       const teamColName = columns[8].column_name;
       // 이스케이프된 따옴표 제거하고 깔끔한 값만 전송
       const cleanTeamValue = selectedTeam.replace(/^"|"$/g, '').replace(/^\\"|\\"$/g, '');
-      searchParams.criteria = {
-        selectedTeam: cleanTeamValue,
-        teamColumnName: teamColName
-      };
+      searchParams.criteria.selectedTeam = cleanTeamValue;
+      searchParams.criteria.teamColumnName = teamColName;
       console.log('팀 필터링 적용:', { selectedTeam, cleanTeamValue, teamColName, searchParams });
     }
     
