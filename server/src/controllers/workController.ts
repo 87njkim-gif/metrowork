@@ -55,11 +55,13 @@ export const checkWorkItem = async (req: Request, res: Response): Promise<void> 
 
     // 업무 해제 권한 확인
     if (!isCompleted) {
-      const canUncomplete = await canUncompleteWork(rowId, userId)
-      if (!canUncomplete) {
+      const uncompleteCheck = await canUncompleteWork(rowId, userId)
+      if (!uncompleteCheck.canUncomplete) {
         res.status(403).json({
           success: false,
-          message: '업무가 완료된 사용자만 해제할 수 있습니다.'
+          message: uncompleteCheck.completedBy 
+            ? `${uncompleteCheck.completedBy} 회원이 처리한 업무입니다.` 
+            : '업무가 완료된 사용자만 해제할 수 있습니다.'
         })
         return
       }

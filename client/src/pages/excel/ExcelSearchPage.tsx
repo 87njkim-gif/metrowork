@@ -179,9 +179,15 @@ const ExcelSearchPage: React.FC = () => {
       
       setShowWorkCompleteModal(false);
       setSelectedRowForWork(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('업무 처리 실패:', error);
-      alert('업무 처리 중 오류가 발생했습니다.');
+      
+      // 업무 해제 권한 오류인 경우 특별한 메시지 표시
+      if (error.response?.status === 403) {
+        alert(error.response.data.message || '업무 해제 권한이 없습니다.');
+      } else {
+        alert('업무 처리 중 오류가 발생했습니다.');
+      }
     }
   };
 

@@ -120,21 +120,37 @@ export const syncWorkStatusToAllUsers = async (excelDataId: number, isCompleted:
 }
 
 // 작업 상태 취소 권한 확인
-export const canUncompleteWork = async (excelDataId: number, userId: number): Promise<boolean> => {
+export const canUncompleteWork = async (excelDataId: number, userId: number): Promise<{
+  canUncomplete: boolean;
+  completedBy?: string;
+  completedByUserId?: number;
+}> => {
   try {
     // 해당 작업에 대한 완료된 사용자 조회
-    const completedUsers = await pool.query(
-      'SELECT user_id FROM work_status WHERE data_id = $1 AND is_completed = TRUE',
-      [excelDataId]
-    )
+    const completedUsers = await pool.query(`
+      SELECT ws.user_id, u.name as user_name 
+      FROM work_status ws 
+      JOIN users u ON ws.user_id = u.id 
+      WHERE ws.data_id = $1 AND ws.is_completed = TRUE
+    `, [excelDataId])
 
-    // 현재 사용자가 완료된 사용자 중에 있는지 확인
-    const userCompleted = completedUsers.rows.some((user: any) => user.user_id === userId)
+    if (completedUsers.rows.length === 0) {
+      return { canUncomplete: false }
+    }
+
+    const completedUser = completedUsers.rows[0]
     
-    return userCompleted
+    // 현재 사용자가 완료한 사용자인지 확인
+    const canUncomplete = completedUser.user_id === userId
+    
+    return {
+      canUncomplete,
+      completedBy: completedUser.user_name,
+      completedByUserId: completedUser.user_id
+    }
   } catch (error) {
     console.error('Check uncomplete permission error:', error)
-    return false
+    return { canUncomplete: false }
   }
 }
 
