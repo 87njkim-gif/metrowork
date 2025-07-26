@@ -148,31 +148,11 @@ const DashboardPage: React.FC = () => {
         {userStatus?.data && (
           <div className="card mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">내 업무 현황</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-600">
-                  {userStatus.data.completedItems}
-                </div>
-                <div className="text-sm text-gray-600">완료된 업무</div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary-600 mb-2">
+                {userStatus.data.completedItems}
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-warning-600">
-                  {userStatus.data.pendingItems}
-                </div>
-                <div className="text-sm text-gray-600">대기 중인 업무</div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span>진행률</span>
-                <span>{userStatus.data.completionRate}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${userStatus.data.completionRate}%` }}
-                />
-              </div>
+              <div className="text-sm text-gray-600">완료된 업무</div>
             </div>
           </div>
         )}
