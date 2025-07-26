@@ -29,6 +29,8 @@ const DashboardPage: React.FC = () => {
     () => apiService.getWorkStats(),
     {
       refetchInterval: 30000, // 30초마다 갱신
+      refetchOnWindowFocus: true, // 창 포커스 시 갱신
+      staleTime: 0, // 항상 최신 데이터로 간주
     }
   )
 
@@ -38,6 +40,8 @@ const DashboardPage: React.FC = () => {
     () => apiService.getUserWorkStatus(),
     {
       refetchInterval: 30000,
+      refetchOnWindowFocus: true, // 창 포커스 시 갱신
+      staleTime: 0, // 항상 최신 데이터로 간주
     }
   )
 

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useQueryClient } from 'react-query';
 import apiService from '../../services/api';
 
 const PAGE_SIZE = 20;
 
 const ExcelSearchPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const [files, setFiles] = useState<any[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
   const [columns, setColumns] = useState<any[]>([]);
@@ -170,6 +172,10 @@ const ExcelSearchPage: React.FC = () => {
         });
         alert('업무 완료가 해제되었습니다.');
       }
+      
+      // 대시보드 데이터 캐시 무효화
+      queryClient.invalidateQueries('workStats');
+      queryClient.invalidateQueries('userWorkStatus');
       
       setShowWorkCompleteModal(false);
       setSelectedRowForWork(null);
