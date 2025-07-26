@@ -317,7 +317,7 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
         excel_data: {
           id: ws.excel_data_id,
           row_index: ws.row_index,
-          row_data: JSON.parse(ws.row_data),
+          row_data: typeof ws.row_data === 'string' ? JSON.parse(ws.row_data) : ws.row_data,
           is_valid: ws.is_valid
         },
         user: {
