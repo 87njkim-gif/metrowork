@@ -238,6 +238,9 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
   }
 }> => {
   try {
+    console.log('=== getCompletedWork 호출 ===')
+    console.log('받은 쿼리:', query)
+    
     const page = query.page || 1
     const limit = Math.min(query.limit || 20, 100)
     const offset = (page - 1) * limit
@@ -260,6 +263,9 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
     if (query.userId) {
       whereConditions.push(`ws.user_id = $${params.length + 1}`)
       params.push(query.userId)
+      console.log('사용자 필터 추가됨:', query.userId)
+    } else {
+      console.log('사용자 필터 없음')
     }
 
     // 파일 필터
@@ -279,6 +285,8 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
+    console.log('최종 WHERE 절:', whereClause)
+    console.log('파라미터:', params)
 
     // 전체 개수 조회
     const countQuery = `
@@ -289,8 +297,10 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
       JOIN excel_files ef ON ed.file_id = ef.id
       ${whereClause}
     `
+    console.log('COUNT 쿼리:', countQuery)
     const countResult = await pool.query(countQuery, params)
     const total = countResult.rows[0].total
+    console.log('총 개수:', total)
 
     // 데이터 조회
     const dataQuery = `
@@ -314,7 +324,10 @@ export const getCompletedWork = async (query: CompletedWorkQuery): Promise<{
       ORDER BY ws.completed_at DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `
+    console.log('DATA 쿼리:', dataQuery)
     const workStatuses = await pool.query(dataQuery, [...params, limit, offset])
+    console.log('조회된 결과 수:', workStatuses.rows.length)
+    console.log('첫 번째 결과:', workStatuses.rows[0])
 
     // 요약 조회
     const summary = await getWorkSummary()
