@@ -28,7 +28,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: process.env.REACT_APP_API_URL || 'https://metrowork.onrender.com/api',
-      timeout: 30000,
+      timeout: 60000, // 모바일 환경을 위해 60초로 증가
       headers: {
         'Content-Type': 'application/json',
       },
@@ -62,40 +62,84 @@ class ApiService {
     )
   }
 
+  // 재시도 로직이 포함된 API 호출 함수
+  private async apiCallWithRetry<T>(apiCall: () => Promise<T>, maxRetries = 3): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await apiCall();
+      } catch (error: any) {
+        lastError = error;
+        
+        // 네트워크 오류나 타임아웃인 경우에만 재시도
+        if (error.code === 'ECONNABORTED' || 
+            error.message === 'Network Error' ||
+            error.message.includes('timeout') ||
+            error.message.includes('aborted')) {
+          
+          if (attempt < maxRetries) {
+            // 지수 백오프: 1초, 2초, 4초
+            const delay = Math.pow(2, attempt - 1) * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+        
+        // 재시도할 수 없는 오류는 즉시 throw
+        throw error;
+      }
+    }
+    
+    throw lastError;
+  }
+
   // 인증 관련 API
   async login(data: LoginRequest): Promise<AuthResponse> {
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', data)
-    return response.data
+    return this.apiCallWithRetry(async () => {
+      const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', data)
+      return response.data
+    });
   }
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', data)
-    return response.data
+    return this.apiCallWithRetry(async () => {
+      const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', data)
+      return response.data
+    });
   }
 
   async refreshToken(): Promise<AuthResponse> {
-    const refreshToken = localStorage.getItem('refreshToken')
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/refresh', {
-      refreshToken
-    })
-    return response.data
+    return this.apiCallWithRetry(async () => {
+      const refreshToken = localStorage.getItem('refreshToken')
+      const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/refresh', {
+        refreshToken
+      })
+      return response.data
+    });
   }
 
   async logout(): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.api.post('/auth/logout')
-    return response.data
+    return this.apiCallWithRetry(async () => {
+      const response: AxiosResponse<ApiResponse> = await this.api.post('/auth/logout')
+      return response.data
+    });
   }
 
   async getCurrentUser(): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.api.get('/auth/me')
-    return response.data
+    return this.apiCallWithRetry(async () => {
+      const response: AxiosResponse<ApiResponse> = await this.api.get('/auth/me')
+      return response.data
+    });
   }
 
   async deleteAccount(password: string): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.api.delete('/auth/account', {
-      data: { password }
-    })
-    return response.data
+    return this.apiCallWithRetry(async () => {
+      const response: AxiosResponse<ApiResponse> = await this.api.delete('/auth/account', {
+        data: { password }
+      })
+      return response.data
+    });
   }
 
   // 엑셀 관련 API
