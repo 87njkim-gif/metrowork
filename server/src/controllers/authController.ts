@@ -416,13 +416,7 @@ export const deleteAccount = async (req: Request, res: Response): Promise<void> 
         [userId]
       )
 
-      // 3. 사용자의 리프레시 토큰 삭제
-      await client.query(
-        'DELETE FROM refresh_tokens WHERE user_id = $1',
-        [userId]
-      )
-
-      // 4. 사용자 계정 삭제
+      // 3. 사용자 계정 삭제
       await client.query(
         'DELETE FROM users WHERE id = $1',
         [userId]
