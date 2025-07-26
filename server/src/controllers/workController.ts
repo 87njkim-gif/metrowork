@@ -106,6 +106,13 @@ export const checkWorkItem = async (req: Request, res: Response): Promise<void> 
 // 완료된 업무 목록 조회
 export const getCompletedWorkList = async (req: Request, res: Response): Promise<void> => {
   try {
+    // 캐시 방지 헤더 설정
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    })
+
     const page = parseInt(req.query.page as string) || 1
     const limit = parseInt(req.query.limit as string) || 20
     const startDate = req.query.startDate as string

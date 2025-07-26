@@ -166,7 +166,23 @@ class ApiService {
     fileId?: number
     search?: string
   }): Promise<ApiResponse<{ workStatuses: WorkStatus[]; pagination: any; summary: any }>> {
-    const response: AxiosResponse<ApiResponse> = await this.api.get('/work/completed', { params })
+    const queryParams = new URLSearchParams()
+    
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.startDate) queryParams.append('startDate', params.startDate)
+    if (params?.endDate) queryParams.append('endDate', params.endDate)
+    if (params?.userId) queryParams.append('userId', params.userId.toString())
+    if (params?.fileId) queryParams.append('fileId', params.fileId.toString())
+    if (params?.search) queryParams.append('search', params.search)
+    
+    const response: AxiosResponse<ApiResponse<{ workStatuses: WorkStatus[]; pagination: any; summary: any }>> = await this.api.get(`/work/completed?${queryParams.toString()}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
     return response.data
   }
 
