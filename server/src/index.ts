@@ -57,11 +57,37 @@ app.use(helmet({
 
 // CORS ?�정
 app.use(cors({
-  origin: [
-    process.env.CLIENT_URL || 'http://localhost:3000',
-    'https://metrowork-1.onrender.com',
-    'https://metrowork.onrender.com'
-  ],
+  origin: function (origin, callback) {
+    // 개발 환경에서는 모든 origin 허용
+    if (process.env.NODE_ENV === 'development') {
+      callback(null, true);
+      return;
+    }
+    
+    const allowedOrigins = [
+      process.env.CLIENT_URL || 'http://localhost:3000',
+      'https://metrowork-1.onrender.com',
+      'https://metrowork.onrender.com',
+      'https://metrowork-1.onrender.com/',
+      'https://metrowork.onrender.com/',
+      // 모바일 접속을 위한 추가 설정
+      /^https:\/\/.*\.onrender\.com$/,
+      /^http:\/\/localhost:\d+$/,
+      /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // 로컬 네트워크
+      /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/, // 로컬 네트워크
+      /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:\d+$/ // 로컬 네트워크
+    ];
+    
+    // origin이 없거나 허용된 origin인 경우
+    if (!origin || allowedOrigins.some(allowed => 
+      typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
+    )) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'X-Requested-With'],
@@ -70,7 +96,21 @@ app.use(cors({
 
 // OPTIONS 요청 처리
 app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
+  const origin = req.headers.origin
+  const allowedOrigins = [
+    process.env.CLIENT_URL || 'http://localhost:3000',
+    'https://metrowork-1.onrender.com',
+    'https://metrowork.onrender.com',
+    'https://metrowork-1.onrender.com/',
+    'https://metrowork.onrender.com/'
+  ]
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin)
+  } else {
+    res.header('Access-Control-Allow-Origin', '*')
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cache-Control, Pragma, Expires, X-Requested-With')
   res.header('Access-Control-Allow-Credentials', 'true')
@@ -124,7 +164,18 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    socketIO: 'enabled'
+    socketIO: 'enabled',
+    cors: 'enabled',
+    origin: req.headers.origin || 'unknown'
+  })
+})
+
+// Root endpoint for testing
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'MetroWork API Server is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   })
 })
 

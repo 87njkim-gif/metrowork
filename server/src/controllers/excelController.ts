@@ -376,7 +376,37 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
 
     if (criteria && criteria.filters && criteria.filters.length > 0) {
       criteria.filters.forEach((filter: any) => {
-        whereClause += ` AND (row_data->>'${filter.column}')::${filter.type} ${filter.operator} $${paramIndex}`
+        const columnValue = `(row_data->>'${filter.column}')`
+        
+        switch (filter.operator) {
+          case 'equals':
+            whereClause += ` AND ${columnValue} = $${paramIndex}`
+            break
+          case 'contains':
+            whereClause += ` AND ${columnValue} ILIKE $${paramIndex}`
+            params.push(`%${filter.value}%`)
+            paramIndex++
+            continue
+          case 'starts_with':
+            whereClause += ` AND ${columnValue} ILIKE $${paramIndex}`
+            params.push(`${filter.value}%`)
+            paramIndex++
+            continue
+          case 'ends_with':
+            whereClause += ` AND ${columnValue} ILIKE $${paramIndex}`
+            params.push(`%${filter.value}`)
+            paramIndex++
+            continue
+          case 'greater_than':
+            whereClause += ` AND (${columnValue})::numeric > $${paramIndex}`
+            break
+          case 'less_than':
+            whereClause += ` AND (${columnValue})::numeric < $${paramIndex}`
+            break
+          default:
+            whereClause += ` AND ${columnValue} = $${paramIndex}`
+        }
+        
         params.push(filter.value)
         paramIndex++
       })
@@ -399,11 +429,18 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
 
     const total = countResult.rows[0].total
 
+    // 정렬 조건 구성
+    let orderClause = 'ORDER BY id ASC'
+    if (criteria && criteria.sortBy) {
+      const sortDirection = criteria.sortOrder === 'desc' ? 'DESC' : 'ASC'
+      orderClause = `ORDER BY (row_data->>'${criteria.sortBy}') ${sortDirection}`
+    }
+
     // 데이터 목록 조회
     const dataResult = await pool.query(
       `SELECT * FROM excel_data 
        ${whereClause}
-       ORDER BY id ASC
+       ${orderClause}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     )

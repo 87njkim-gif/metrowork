@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useQueryClient } from 'react-query';
 import apiService from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
+import { ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
 
 const PAGE_SIZE = 20;
 
@@ -25,6 +26,21 @@ const ExcelSearchPage: React.FC = () => {
   const [showWorkCompleteModal, setShowWorkCompleteModal] = useState(false);
   const [selectedRowForWork, setSelectedRowForWork] = useState<any>(null);
   const [completedRows, setCompletedRows] = useState<Set<number>>(new Set());
+  
+  // 필터 관련 상태
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<Array<{
+    id: string;
+    column: string;
+    columnName: string;
+    operator: 'equals' | 'contains' | 'starts_with' | 'ends_with' | 'greater_than' | 'less_than';
+    value: string;
+    type: 'text' | 'number' | 'date';
+  }>>([]);
+  const [sortConfig, setSortConfig] = useState<{
+    column: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
 
   // 파일 목록 불러오기
   useEffect(() => {
@@ -86,6 +102,22 @@ const ExcelSearchPage: React.FC = () => {
       searchParams.criteria.teamColumnName = teamColName;
       console.log('팀 필터링 적용:', { selectedTeam, cleanTeamValue, teamColName, searchParams });
     }
+
+    // 필터 추가
+    if (filters.length > 0) {
+      searchParams.criteria.filters = filters.map(filter => ({
+        column: filter.column,
+        operator: filter.operator,
+        value: filter.value,
+        type: filter.type
+      }));
+    }
+
+    // 정렬 추가
+    if (sortConfig) {
+      searchParams.criteria.sortBy = sortConfig.column;
+      searchParams.criteria.sortOrder = sortConfig.direction;
+    }
     
     console.log('API 호출 파라미터:', searchParams);
     
@@ -117,7 +149,7 @@ const ExcelSearchPage: React.FC = () => {
       console.error('API 에러:', error);
       setLoading(false);
     });
-  }, [selectedFileId, page, search, selectedTeam]); // search만 의존성에 둠
+  }, [selectedFileId, page, search, selectedTeam, filters, sortConfig]); // 필터와 정렬 의존성 추가
 
   // 팀 선택 핸들러
   const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -132,6 +164,56 @@ const ExcelSearchPage: React.FC = () => {
     setPage(1);
     setSearch(searchInput); // 검색 버튼 클릭 시에만 검색어 반영
   };
+
+  // 필터 추가
+  const addFilter = () => {
+    const newFilter = {
+      id: Date.now().toString(),
+      column: '',
+      columnName: '',
+      operator: 'equals' as const,
+      value: '',
+      type: 'text' as const
+    };
+    setFilters([...filters, newFilter]);
+  };
+
+  // 필터 제거
+  const removeFilter = (filterId: string) => {
+    setFilters(filters.filter(f => f.id !== filterId));
+  };
+
+  // 필터 업데이트
+  const updateFilter = (filterId: string, field: string, value: any) => {
+    setFilters(filters.map(f => 
+      f.id === filterId ? { ...f, [field]: value } : f
+    ));
+  };
+
+  // 정렬 처리
+  const handleSort = (column: string) => {
+    setSortConfig(prev => {
+      if (prev?.column === column) {
+        return {
+          column,
+          direction: prev.direction === 'asc' ? 'desc' : 'asc'
+        };
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  // 필터 적용
+  const applyFilters = () => {
+    console.log('필터 적용:', filters);
+    setPage(1);
+    setShowFilters(false);
+  };
+
+  // 필터 상태 디버깅
+  useEffect(() => {
+    console.log('필터 상태:', { showFilters, filtersCount: filters.length, filters });
+  }, [showFilters, filters]);
 
   // 길게 터치 핸들러
   const handleLongPress = (row: any) => {
@@ -268,19 +350,144 @@ const ExcelSearchPage: React.FC = () => {
             <span className="text-sm text-gray-400 ml-2">엑셀 데이터에 팀 정보가 없습니다.</span>
           )}
         </div>
-        {/* 검색 */}
-        <form onSubmit={handleSearch} className="mb-4 flex gap-2">
-          <input
-            type="text"
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            placeholder="자산번호 / 주소 / 전철역 등으로 검색하세요"
-            className="border rounded px-2 py-1 flex-1"
-          />
-          <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded">검색</button>
-        </form>
+        {/* 검색 및 필터 */}
+        <div className="mb-4 space-y-3">
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="자산번호 / 주소 / 전철역 등으로 검색하세요"
+              className="border rounded px-2 py-1 flex-1"
+            />
+            <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded">검색</button>
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-4 py-2 rounded-lg border-2 flex items-center gap-2 font-medium transition-colors ${
+                showFilters 
+                  ? 'bg-blue-100 border-blue-400 text-blue-800 shadow-md' 
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+              }`}
+            >
+              <span>🔍</span>
+              <span>필터</span>
+              {filters.length > 0 && (
+                <span className="bg-blue-600 text-white text-xs rounded-full px-2 py-1 font-bold">
+                  {filters.length}
+                </span>
+              )}
+            </button>
+          </form>
+
+          {/* 필터 패널 */}
+          {showFilters && (
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 space-y-4 shadow-lg">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-blue-800 flex items-center gap-2">
+                  <span>🔍</span>
+                  컬럼별 필터
+                </h3>
+                <button
+                  onClick={addFilter}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                >
+                  <span>+</span>
+                  필터 추가
+                </button>
+              </div>
+
+              {filters.length === 0 ? (
+                <div className="text-center py-8">
+                  <span className="text-4xl mb-3 block">🔍</span>
+                  <p className="text-blue-600 font-medium mb-2">필터를 추가해보세요</p>
+                  <p className="text-blue-500 text-sm">컬럼별로 정확한 조건을 설정하여 데이터를 찾을 수 있습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filters.map((filter) => (
+                    <div key={filter.id} className="flex items-center gap-2 p-3 bg-white rounded border">
+                      {/* 컬럼 선택 */}
+                      <select
+                        value={filter.column}
+                        onChange={(e) => {
+                          const column = e.target.value;
+                          const columnData = columns.find(col => col.column_name === column);
+                          updateFilter(filter.id, 'column', column);
+                          updateFilter(filter.id, 'columnName', columnData?.display_name || column);
+                          updateFilter(filter.id, 'type', columnData?.data_type === 'number' ? 'number' : 'text');
+                        }}
+                        className="border rounded px-2 py-1 text-sm min-w-[120px]"
+                      >
+                        <option value="">컬럼 선택</option>
+                        {columns.map((col) => (
+                          <option key={col.column_index} value={col.column_name}>
+                            {col.display_name || col.column_name}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* 연산자 선택 */}
+                      <select
+                        value={filter.operator}
+                        onChange={(e) => updateFilter(filter.id, 'operator', e.target.value)}
+                        className="border rounded px-2 py-1 text-sm min-w-[100px]"
+                      >
+                        <option value="equals">같음</option>
+                        <option value="contains">포함</option>
+                        <option value="starts_with">시작</option>
+                        <option value="ends_with">끝남</option>
+                        {filter.type === 'number' && (
+                          <>
+                            <option value="greater_than">보다 큼</option>
+                            <option value="less_than">보다 작음</option>
+                          </>
+                        )}
+                      </select>
+
+                      {/* 값 입력 */}
+                      <input
+                        type={filter.type === 'number' ? 'number' : 'text'}
+                        value={filter.value}
+                        onChange={(e) => updateFilter(filter.id, 'value', e.target.value)}
+                        placeholder="값 입력"
+                        className="border rounded px-2 py-1 text-sm flex-1"
+                      />
+
+                      {/* 필터 제거 */}
+                      <button
+                        onClick={() => removeFilter(filter.id)}
+                        className="text-red-600 hover:text-red-800 p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="flex gap-3 pt-4 border-t border-blue-200">
+                    <button
+                      onClick={applyFilters}
+                      className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex-1"
+                    >
+                      필터 적용
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFilters([]);
+                        setShowFilters(false);
+                      }}
+                      className="bg-gray-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-600 transition-colors flex-1"
+                    >
+                      필터 초기화
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         
-        {/* 사용 안내 */}
+        {/* 사용 안내 및 필터 상태 */}
         <div className="mb-4 p-3 bg-blue-50 rounded text-sm text-blue-700">
           💡 <strong>전체 업무 현황:</strong> 이 화면에서는 모든 사용자가 완료한 업무가 표시됩니다.
           {completedRows.size > 0 && (
@@ -291,6 +498,28 @@ const ExcelSearchPage: React.FC = () => {
             💡 <strong>사용법:</strong> 항목을 길게 터치하면 업무 완료/해제 설정이 가능합니다. 
             본인이 처리한 업무만 해제할 수 있습니다.
           </span>
+          
+          {/* 필터 상태 표시 */}
+          {(filters.length > 0 || sortConfig) && (
+            <div className="mt-4 pt-4 border-t border-blue-200">
+              <h4 className="text-sm font-medium text-blue-700 mb-2 flex items-center gap-2">
+                <span>🔍</span>
+                적용된 필터 및 정렬
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {filters.map((filter) => (
+                  <span key={filter.id} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium border border-blue-200">
+                    {filter.columnName}: {filter.operator} {filter.value}
+                  </span>
+                ))}
+                {sortConfig && (
+                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200">
+                    정렬: {sortConfig.column} ({sortConfig.direction === 'asc' ? '오름차순' : '내림차순'})
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         
         {/* 더보기 버튼 */}
@@ -324,8 +553,23 @@ const ExcelSearchPage: React.FC = () => {
               <thead>
                 <tr>
                   {visibleColumns.map((col: any) => (
-                    <th key={col.column_index} className="border-b border-r border-gray-200 px-3 py-2 bg-gray-50 text-center font-semibold">
-                      {col.display_name || col.column_name}
+                    <th 
+                      key={col.column_index} 
+                      className="border-b border-r border-gray-200 px-3 py-2 bg-gray-50 text-center font-semibold cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleSort(col.column_name)}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span>{col.display_name || col.column_name}</span>
+                        {sortConfig?.column === col.column_name && (
+                          <span className="text-blue-600">
+                            {sortConfig.direction === 'asc' ? (
+                              <span>⬆️</span>
+                            ) : (
+                              <span>⬇️</span>
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </th>
                   ))}
                 </tr>

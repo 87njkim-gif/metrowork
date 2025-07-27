@@ -2,6 +2,31 @@ import { useState, useEffect, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import toast from 'react-hot-toast'
 
+// API URL 유틸리티 함수
+const getApiUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL
+  }
+  
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:5000/api'
+  }
+  
+  return 'https://metrowork.onrender.com/api'
+}
+
+const getSocketUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.replace('/api', '')
+  }
+  
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:5000'
+  }
+  
+  return 'https://metrowork.onrender.com'
+}
+
 interface WorkCheck {
   id: number
   task_id: number
@@ -77,7 +102,9 @@ export const useWorkCheck = (): UseWorkCheckReturn => {
     const token = localStorage.getItem('token')
     if (!token) return
 
-    const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000', {
+
+
+    const newSocket = io(getSocketUrl(), {
       auth: { token },
       transports: ['websocket', 'polling']
     })
@@ -145,7 +172,19 @@ export const useWorkCheck = (): UseWorkCheckReturn => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/work-check/check`, {
+      const getApiUrl = () => {
+        if (process.env.REACT_APP_API_URL) {
+          return process.env.REACT_APP_API_URL
+        }
+        
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          return 'http://localhost:5000/api'
+        }
+        
+        return 'https://metrowork.onrender.com/api'
+      }
+
+      const response = await fetch(`${getApiUrl()}/work-check/check`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -190,7 +229,7 @@ export const useWorkCheck = (): UseWorkCheckReturn => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/work-check/uncheck/${taskId}`, {
+      const response = await fetch(`${getApiUrl()}/work-check/uncheck/${taskId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -224,7 +263,7 @@ export const useWorkCheck = (): UseWorkCheckReturn => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/work-check/status/${taskId}`, {
+      const response = await fetch(`${getApiUrl()}/work-check/status/${taskId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -252,7 +291,7 @@ export const useWorkCheck = (): UseWorkCheckReturn => {
   const getRealTimeStatus = useCallback(async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/work-check/real-time-status`, {
+      const response = await fetch(`${getApiUrl()}/work-check/real-time-status`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -283,7 +322,7 @@ export const useWorkCheck = (): UseWorkCheckReturn => {
       if (date) params.append('date', date)
       if (userId) params.append('userId', userId.toString())
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/work-check/all-status?${params}`, {
+      const response = await fetch(`${getApiUrl()}/work-check/all-status?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

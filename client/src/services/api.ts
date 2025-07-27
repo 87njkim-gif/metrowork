@@ -12,8 +12,32 @@ import {
 } from '../types'
 
 // API 기본 설정
+const getApiBaseUrl = () => {
+  // 환경 변수가 있으면 사용
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL
+  }
+  
+  // 현재 도메인 기반으로 추정
+  const hostname = window.location.hostname
+  const port = window.location.port
+  
+  // 로컬 개발 환경
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+    return `http://${hostname}:5000/api`
+  }
+  
+  // 프로덕션 환경 (Render)
+  if (hostname.includes('onrender.com')) {
+    return 'https://metrowork.onrender.com/api'
+  }
+  
+  // 기본값
+  return 'https://metrowork.onrender.com/api'
+}
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://metrowork.onrender.com/api',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -27,7 +51,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: process.env.REACT_APP_API_URL || 'https://metrowork.onrender.com/api',
+      baseURL: getApiBaseUrl(),
       timeout: 60000, // 모바일 환경을 위해 60초로 증가
       headers: {
         'Content-Type': 'application/json',

@@ -12,7 +12,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\./,
+            urlPattern: /^https:\/\/.*\.onrender\.com\/api/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
@@ -51,6 +51,7 @@ export default defineConfig({
   ],
   server: {
     port: 3000,
+    host: '0.0.0.0', // 모든 IP에서 접근 가능
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
@@ -60,9 +61,18 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom']
+        }
+      }
+    }
   },
   preview: {
-    port: 3000
+    port: 3000,
+    host: '0.0.0.0'
   }
 }) 
