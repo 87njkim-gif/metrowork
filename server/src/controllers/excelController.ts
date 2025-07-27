@@ -381,34 +381,39 @@ export const searchExcelData = async (req: Request, res: Response): Promise<void
         switch (filter.operator) {
           case 'equals':
             whereClause += ` AND ${columnValue} = $${paramIndex}`
+            params.push(filter.value)
+            paramIndex++
             break
           case 'contains':
             whereClause += ` AND ${columnValue} ILIKE $${paramIndex}`
             params.push(`%${filter.value}%`)
             paramIndex++
-            continue
+            break
           case 'starts_with':
             whereClause += ` AND ${columnValue} ILIKE $${paramIndex}`
             params.push(`${filter.value}%`)
             paramIndex++
-            continue
+            break
           case 'ends_with':
             whereClause += ` AND ${columnValue} ILIKE $${paramIndex}`
             params.push(`%${filter.value}`)
             paramIndex++
-            continue
+            break
           case 'greater_than':
             whereClause += ` AND (${columnValue})::numeric > $${paramIndex}`
+            params.push(filter.value)
+            paramIndex++
             break
           case 'less_than':
             whereClause += ` AND (${columnValue})::numeric < $${paramIndex}`
+            params.push(filter.value)
+            paramIndex++
             break
           default:
             whereClause += ` AND ${columnValue} = $${paramIndex}`
+            params.push(filter.value)
+            paramIndex++
         }
-        
-        params.push(filter.value)
-        paramIndex++
       })
     }
 
