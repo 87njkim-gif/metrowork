@@ -352,33 +352,35 @@ const ExcelSearchPage: React.FC = () => {
         </div>
         {/* 검색 및 필터 */}
         <div className="mb-4 space-y-3">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              placeholder="자산번호 / 주소 / 전철역 등으로 검색하세요"
-              className="border rounded px-2 py-1 flex-1"
-            />
-            <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded">검색</button>
+          <div className="flex gap-2 items-center">
+            <form onSubmit={handleSearch} className="flex gap-2 flex-1">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="자산번호 / 주소 / 전철역 등으로 검색하세요"
+                className="border rounded px-2 py-1 flex-1"
+              />
+              <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded">검색</button>
+            </form>
             <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-2 rounded-lg border-2 flex items-center gap-2 font-medium transition-colors ${
+              className={`px-6 py-2 rounded-lg border-2 flex items-center gap-2 font-semibold transition-all whitespace-nowrap shadow-sm ${
                 showFilters 
-                  ? 'bg-blue-100 border-blue-400 text-blue-800 shadow-md' 
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                  ? 'bg-blue-500 border-blue-600 text-white shadow-lg transform scale-105' 
+                  : 'bg-blue-600 border-blue-700 text-white hover:bg-blue-700 hover:border-blue-800 hover:shadow-md'
               }`}
             >
-              <span>🔍</span>
+              <span className="text-lg">🔍</span>
               <span>필터</span>
               {filters.length > 0 && (
-                <span className="bg-blue-600 text-white text-xs rounded-full px-2 py-1 font-bold">
+                <span className="bg-white text-blue-600 text-xs rounded-full px-2 py-1 font-bold">
                   {filters.length}
                 </span>
               )}
             </button>
-          </form>
+          </div>
 
           {/* 필터 패널 */}
           {showFilters && (
